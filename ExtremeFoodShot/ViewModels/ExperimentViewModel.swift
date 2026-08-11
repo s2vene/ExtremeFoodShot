@@ -1,7 +1,7 @@
 import Foundation
 
 final class ExperimentViewModel: ObservableObject {
-    let camera = CameraService()
+    var camera = CameraService()
     let motion = MotionAnalyzer()
 
     @Published var lightingMode: LightingMode = .torch
@@ -58,9 +58,9 @@ final class ExperimentViewModel: ObservableObject {
         camera.captureBufferedBurst(
             motion: snapshot,
             lighting: lightingMode,
-            maximumCount: min(3, remainingCount)
+            maximumCount: min(camera.bufferedCandidateCount, remainingCount)
         )
-        if camera.candidates.count + min(3, remainingCount) >= maximumCandidates {
+        if camera.candidates.count + min(camera.bufferedCandidateCount, remainingCount) >= maximumCandidates {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
                 self?.finishExperiment()
             }
