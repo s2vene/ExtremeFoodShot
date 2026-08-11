@@ -1,6 +1,8 @@
 import AVFoundation
+import CoreImage
 import Photos
 import SwiftUI
+import UIKit
 
 final class CameraService: NSObject, ObservableObject {
     let session = AVCaptureSession()
@@ -11,21 +13,48 @@ final class CameraService: NSObject, ObservableObject {
     @Published private(set) var isCapturing = false
     @Published private(set) var frameMetrics = FrameMetrics()
     @Published private(set) var candidates: [CaptureCandidate] = []
+    @Published private(set) var availableLenses: [CameraLens] = [.wide]
+    @Published private(set) var supportsZeroShutterLag = false
+    @Published private(set) var supportsDistortionCorrection = false
+    @Published private(set) var supportsDepth = false
+    @Published private(set) var supportsRAW = false
+    @Published private(set) var supportsProRAW = false
+    @Published var selectedLens: CameraLens = .ultraWide
+    @Published var exposurePreset: ExposurePreset = .automatic
+    @Published var focusPreset: FocusPreset = .continuous
+    @Published var whiteBalancePreset: WhiteBalancePreset = .automatic
+    @Published var captureQuality: CaptureQualityPreset = .speed
+    @Published var torchLevel = 0.8
+    @Published var zeroShutterLagEnabled = false
+    @Published var distortionCorrectionEnabled = false
+    @Published var preTriggerDuration = 0.20
+    @Published var postTriggerDuration = 0.30
+    @Published var bufferedCandidateCount = 3
     @Published var errorMessage: String?
 
     private let sessionQueue = DispatchQueue(label: "camera.session.queue")
     private let frameQueue = DispatchQueue(label: "camera.frame.queue")
     private let photoOutput = AVCapturePhotoOutput()
     private let videoOutput = AVCaptureVideoDataOutput()
+    private let imageContext = CIContext(options: [.cacheIntermediates: false])
     private var camera: AVCaptureDevice?
+    private var cameraInput: AVCaptureDeviceInput?
     private var isConfigured = false
     private var pending: [Int64: PendingCapture] = [:]
     private let pendingLock = NSLock()
+    private var frameBuffer: [BufferedFrame] = []
+    private var lastBufferedFrameTime: TimeInterval = 0
+
+    private struct BufferedFrame {
+        let pixelBuffer: CVPixelBuffer
+        let metrics: FrameMetrics
+    }
 
     private struct PendingCapture {
         let motion: MotionSnapshot
         let frame: FrameMetrics
         let lighting: LightingMode
+        let testSettings: CameraTestSnapshot
     }
 
     func start() {
@@ -62,7 +91,9 @@ final class CameraService: NSObject, ObservableObject {
             do {
                 try camera.lockForConfiguration()
                 if enabled && camera.isTorchModeSupported(.on) {
-                    try camera.setTorchModeOn(level: min(0.8, AVCaptureDevice.maxAvailableTorchLevel))
+                    try camera.setTorchModeOn(
+                        level: min(Float(self.torchLevel), AVCaptureDevice.maxAvailableTorchLevel)
+                    )
                 } else {
                     camera.torchMode = .off
                 }
@@ -83,7 +114,7 @@ final class CameraService: NSObject, ObservableObject {
             } else {
                 settings = AVCapturePhotoSettings()
             }
-            settings.photoQualityPrioritization = .speed
+            settings.photoQualityPrioritization = self.photoQualityPrioritization
             if lighting == .flash, self.camera?.hasFlash == true {
                 settings.flashMode = .on
             } else {
@@ -94,11 +125,62 @@ final class CameraService: NSObject, ObservableObject {
             self.pending[settings.uniqueID] = PendingCapture(
                 motion: motion,
                 frame: self.frameMetrics,
-                lighting: lighting
+                lighting: lighting,
+                testSettings: self.testSettingsSnapshot
             )
             self.pendingLock.unlock()
             DispatchQueue.main.async { self.isCapturing = true }
             self.photoOutput.capturePhoto(with: settings, delegate: self)
+        }
+    }
+
+    /// Keeps the existing motion trigger, but chooses candidates from frames captured
+    /// shortly before and after that trigger instead of relying on one delayed shutter.
+    func captureBufferedBurst(
+        motion: MotionSnapshot,
+        lighting: LightingMode,
+        maximumCount: Int = 3
+    ) {
+        guard maximumCount > 0 else { return }
+        DispatchQueue.main.async { self.isCapturing = true }
+
+        frameQueue.async { [weak self] in
+            guard let self, let triggerFrame = self.frameBuffer.last else {
+                DispatchQueue.main.async { self?.isCapturing = false }
+                return
+            }
+            let triggerTime = triggerFrame.metrics.timestamp
+
+            self.frameQueue.asyncAfter(deadline: .now() + self.postTriggerDuration) { [weak self] in
+                guard let self else { return }
+                let frames = self.frameBuffer.filter {
+                    $0.metrics.timestamp >= triggerTime - self.preTriggerDuration
+                        && $0.metrics.timestamp <= triggerTime + self.postTriggerDuration
+                }
+                let selected = self.bestBufferedFrames(
+                    from: frames,
+                    maximumCount: maximumCount
+                )
+                let candidates = selected.compactMap { frame -> CaptureCandidate? in
+                    guard let data = self.jpegData(from: frame.pixelBuffer) else { return nil }
+                    return CaptureCandidate(
+                        imageData: data,
+                        capturedAt: Date(),
+                        motion: motion,
+                        frame: frame.metrics,
+                        lightingMode: lighting,
+                        exposureDuration: nil,
+                        iso: nil,
+                        testSettings: self.testSettingsSnapshot
+                    )
+                }
+
+                DispatchQueue.main.async {
+                    self.candidates.append(contentsOf: candidates)
+                    self.candidates.sort { $0.recommendationScore > $1.recommendationScore }
+                    self.isCapturing = false
+                }
+            }
         }
     }
 
@@ -157,10 +239,12 @@ final class CameraService: NSObject, ObservableObject {
         let input = try AVCaptureDeviceInput(device: camera)
         guard session.canAddInput(input) else { throw CameraError.configurationFailed }
         session.addInput(input)
+        cameraInput = input
+        selectedLens = camera.deviceType == .builtInUltraWideCamera ? .ultraWide : .wide
 
         guard session.canAddOutput(photoOutput) else { throw CameraError.configurationFailed }
         session.addOutput(photoOutput)
-        photoOutput.maxPhotoQualityPrioritization = .speed
+        photoOutput.maxPhotoQualityPrioritization = .quality
         if photoOutput.isResponsiveCaptureSupported {
             photoOutput.isResponsiveCaptureEnabled = true
         }
@@ -175,7 +259,196 @@ final class CameraService: NSObject, ObservableObject {
         ]
         videoOutput.setSampleBufferDelegate(self, queue: frameQueue)
         if session.canAddOutput(videoOutput) { session.addOutput(videoOutput) }
+        applyDeviceControls()
         isConfigured = true
+        sessionQueue.async { [weak self] in
+            self?.refreshCapabilities()
+            self?.applyOutputControls()
+        }
+    }
+
+    func selectLens(_ lens: CameraLens) {
+        sessionQueue.async { [weak self] in
+            guard let self, let device = self.cameraDevice(for: lens) else { return }
+            do {
+                let newInput = try AVCaptureDeviceInput(device: device)
+                self.session.beginConfiguration()
+                if let oldInput = self.cameraInput { self.session.removeInput(oldInput) }
+                guard self.session.canAddInput(newInput) else {
+                    if let oldInput = self.cameraInput { self.session.addInput(oldInput) }
+                    self.session.commitConfiguration()
+                    throw CameraError.configurationFailed
+                }
+                self.session.addInput(newInput)
+                self.session.commitConfiguration()
+                self.camera = device
+                self.cameraInput = newInput
+                self.applyDeviceControls()
+                self.refreshCapabilities()
+                DispatchQueue.main.async { self.selectedLens = lens }
+            } catch {
+                DispatchQueue.main.async { self.errorMessage = error.localizedDescription }
+            }
+        }
+    }
+
+    func applyCameraTestSettings() {
+        sessionQueue.async { [weak self] in
+            self?.applyDeviceControls()
+            self?.applyOutputControls()
+        }
+    }
+
+    private var photoQualityPrioritization: AVCapturePhotoOutput.QualityPrioritization {
+        switch captureQuality {
+        case .speed: .speed
+        case .balanced: .balanced
+        case .quality: .quality
+        }
+    }
+
+    private var testSettingsSnapshot: CameraTestSnapshot {
+        CameraTestSnapshot(
+            lens: selectedLens,
+            exposure: exposurePreset,
+            focus: focusPreset,
+            whiteBalance: whiteBalancePreset,
+            quality: captureQuality,
+            zeroShutterLag: zeroShutterLagEnabled && supportsZeroShutterLag,
+            distortionCorrection: distortionCorrectionEnabled && supportsDistortionCorrection
+        )
+    }
+
+    private func cameraDevice(for lens: CameraLens) -> AVCaptureDevice? {
+        let type: AVCaptureDevice.DeviceType
+        switch lens {
+        case .ultraWide: type = .builtInUltraWideCamera
+        case .wide: type = .builtInWideAngleCamera
+        case .telephoto: type = .builtInTelephotoCamera
+        }
+        return AVCaptureDevice.default(type, for: .video, position: .back)
+    }
+
+    private func refreshCapabilities() {
+        let lenses = CameraLens.allCases.filter { cameraDevice(for: $0) != nil }
+        let zsl = photoOutput.isZeroShutterLagSupported
+        let distortion = photoOutput.isContentAwareDistortionCorrectionSupported
+        let depth = photoOutput.isDepthDataDeliverySupported
+        let raw = !photoOutput.availableRawPhotoPixelFormatTypes.isEmpty
+        let proRAW = photoOutput.isAppleProRAWSupported
+        DispatchQueue.main.async {
+            self.availableLenses = lenses
+            self.supportsZeroShutterLag = zsl
+            self.supportsDistortionCorrection = distortion
+            self.supportsDepth = depth
+            self.supportsRAW = raw
+            self.supportsProRAW = proRAW
+        }
+    }
+
+    private func applyOutputControls() {
+        if photoOutput.isZeroShutterLagSupported {
+            photoOutput.isZeroShutterLagEnabled = zeroShutterLagEnabled
+        }
+        if photoOutput.isContentAwareDistortionCorrectionSupported {
+            photoOutput.isContentAwareDistortionCorrectionEnabled = distortionCorrectionEnabled
+        }
+    }
+
+    private func applyDeviceControls() {
+        guard let camera else { return }
+        do {
+            try camera.lockForConfiguration()
+            defer { camera.unlockForConfiguration() }
+
+            switch exposurePreset {
+            case .automatic:
+                if camera.isExposureModeSupported(.continuousAutoExposure) {
+                    camera.exposureMode = .continuousAutoExposure
+                }
+            case .freeze, .balanced, .motionBlur:
+                let seconds: Double
+                switch exposurePreset {
+                case .freeze: seconds = 1.0 / 250.0
+                case .balanced: seconds = 1.0 / 60.0
+                case .motionBlur: seconds = 1.0 / 15.0
+                case .automatic: seconds = 1.0 / 60.0
+                }
+                let requested = CMTime(seconds: seconds, preferredTimescale: 1_000_000_000)
+                let notBelowMinimum = CMTimeCompare(requested, camera.activeFormat.minExposureDuration) < 0
+                    ? camera.activeFormat.minExposureDuration : requested
+                let duration = CMTimeCompare(notBelowMinimum, camera.activeFormat.maxExposureDuration) > 0
+                    ? camera.activeFormat.maxExposureDuration : notBelowMinimum
+                camera.setExposureModeCustom(duration: duration, iso: camera.iso, completionHandler: nil)
+            }
+
+            switch focusPreset {
+            case .continuous:
+                if camera.isFocusModeSupported(.continuousAutoFocus) {
+                    camera.focusMode = .continuousAutoFocus
+                }
+            case .centerOnce:
+                if camera.isFocusPointOfInterestSupported {
+                    camera.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
+                }
+                if camera.isFocusModeSupported(.autoFocus) { camera.focusMode = .autoFocus }
+            case .locked:
+                if camera.isLockingFocusWithCustomLensPositionSupported {
+                    camera.setFocusModeLocked(
+                        lensPosition: camera.lensPosition,
+                        completionHandler: nil
+                    )
+                }
+            }
+
+            switch whiteBalancePreset {
+            case .automatic:
+                if camera.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+                    camera.whiteBalanceMode = .continuousAutoWhiteBalance
+                }
+            case .locked:
+                if camera.isLockingWhiteBalanceWithCustomDeviceGainsSupported {
+                    camera.setWhiteBalanceModeLocked(
+                        with: camera.deviceWhiteBalanceGains,
+                        completionHandler: nil
+                    )
+                }
+            }
+        } catch {
+            DispatchQueue.main.async { self.errorMessage = error.localizedDescription }
+        }
+    }
+
+    private func bestBufferedFrames(
+        from frames: [BufferedFrame],
+        maximumCount: Int
+    ) -> [BufferedFrame] {
+        let ranked = frames.sorted { bufferedFrameScore($0) > bufferedFrameScore($1) }
+        var selected: [BufferedFrame] = []
+        for frame in ranked {
+            guard selected.allSatisfy({
+                abs($0.metrics.timestamp - frame.metrics.timestamp) >= 0.06
+            }) else { continue }
+            selected.append(frame)
+            if selected.count == maximumCount { break }
+        }
+        return selected
+    }
+
+    private func bufferedFrameScore(_ frame: BufferedFrame) -> Double {
+        let exposure = (0.12...0.92).contains(frame.metrics.brightness) ? 20.0 : 5.0
+        let detail = min(frame.metrics.edgeEnergy / 18, 1) * 25
+        return exposure + detail
+    }
+
+    private func jpegData(from pixelBuffer: CVPixelBuffer) -> Data? {
+        let image = CIImage(cvPixelBuffer: pixelBuffer).oriented(.right)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        return imageContext.jpegRepresentation(
+            of: image,
+            colorSpace: colorSpace,
+            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.92]
+        )
     }
 }
 
@@ -208,7 +481,8 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
             frame: capture.frame,
             lightingMode: capture.lighting,
             exposureDuration: exposure,
-            iso: isoValues?.first
+            iso: isoValues?.first,
+            testSettings: capture.testSettings
         )
         DispatchQueue.main.async {
             self.candidates.append(candidate)
@@ -253,6 +527,11 @@ extension CameraService: AVCaptureVideoDataOutputSampleBufferDelegate {
             edgeEnergy: edges / Double(samples),
             timestamp: CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
         )
+        if next.timestamp - lastBufferedFrameTime >= 1.0 / 15.0 {
+            frameBuffer.append(BufferedFrame(pixelBuffer: buffer, metrics: next))
+            lastBufferedFrameTime = next.timestamp
+            frameBuffer.removeAll { $0.metrics.timestamp < next.timestamp - 1.10 }
+        }
         DispatchQueue.main.async { self.frameMetrics = next }
     }
 }

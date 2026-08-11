@@ -9,6 +9,41 @@ enum LightingMode: String, CaseIterable, Identifiable {
     var id: Self { self }
 }
 
+enum CameraLens: String, CaseIterable, Identifiable {
+    case ultraWide = "초광각"
+    case wide = "광각"
+    case telephoto = "망원"
+    var id: Self { self }
+}
+
+enum ExposurePreset: String, CaseIterable, Identifiable {
+    case automatic = "자동"
+    case freeze = "빠르게 · 1/250초"
+    case balanced = "균형 · 1/60초"
+    case motionBlur = "블러 · 1/15초"
+    var id: Self { self }
+}
+
+enum FocusPreset: String, CaseIterable, Identifiable {
+    case continuous = "연속 자동"
+    case centerOnce = "중앙 한 번"
+    case locked = "현재 위치 고정"
+    var id: Self { self }
+}
+
+enum WhiteBalancePreset: String, CaseIterable, Identifiable {
+    case automatic = "자동"
+    case locked = "현재 색온도 고정"
+    var id: Self { self }
+}
+
+enum CaptureQualityPreset: String, CaseIterable, Identifiable {
+    case speed = "속도 우선"
+    case balanced = "균형"
+    case quality = "화질 우선"
+    var id: Self { self }
+}
+
 enum MotionPhase: String {
     case idle = "대기"
     case movingDown = "아래로 이동"
@@ -33,6 +68,16 @@ struct FrameMetrics {
     var timestamp: TimeInterval = 0
 }
 
+struct CameraTestSnapshot {
+    let lens: CameraLens
+    let exposure: ExposurePreset
+    let focus: FocusPreset
+    let whiteBalance: WhiteBalancePreset
+    let quality: CaptureQualityPreset
+    let zeroShutterLag: Bool
+    let distortionCorrection: Bool
+}
+
 struct CaptureCandidate: Identifiable {
     let id = UUID()
     let imageData: Data
@@ -42,6 +87,7 @@ struct CaptureCandidate: Identifiable {
     let lightingMode: LightingMode
     let exposureDuration: Double?
     let iso: Double?
+    let testSettings: CameraTestSnapshot
     var isSelected = false
 
     var image: UIImage? { UIImage(data: imageData) }
@@ -54,4 +100,3 @@ struct CaptureCandidate: Identifiable {
         return max(0, min(100, motionScore + detailScore + exposureScore - rotationPenalty))
     }
 }
-
