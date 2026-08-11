@@ -44,6 +44,7 @@ final class CameraService: NSObject, ObservableObject {
     private let pendingLock = NSLock()
     private var frameBuffer: [BufferedFrame] = []
     private var lastBufferedFrameTime: TimeInterval = 0
+    private var wantsSessionRunning = false
 
     private struct BufferedFrame {
         let pixelBuffer: CVPixelBuffer
@@ -55,6 +56,38 @@ final class CameraService: NSObject, ObservableObject {
         let frame: FrameMetrics
         let lighting: LightingMode
         let testSettings: CameraTestSnapshot
+    }
+
+    override init() {
+        super.init()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(sessionWasInterrupted),
+            name: AVCaptureSession.wasInterruptedNotification,
+            object: session
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(sessionInterruptionEnded),
+            name: AVCaptureSession.interruptionEndedNotification,
+            object: session
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(sessionRuntimeError),
+            name: AVCaptureSession.runtimeErrorNotification,
+            object: session
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     func start() {
@@ -76,8 +109,9 @@ final class CameraService: NSObject, ObservableObject {
     func stop() {
         setTorch(enabled: false)
         sessionQueue.async { [weak self] in
-            guard let self, self.session.isRunning else { return }
-            self.session.stopRunning()
+            guard let self else { return }
+            self.wantsSessionRunning = false
+            if self.session.isRunning { self.session.stopRunning() }
             DispatchQueue.main.async { self.isRunning = false }
         }
     }
@@ -210,14 +244,48 @@ final class CameraService: NSObject, ObservableObject {
     private func configureAndStart() {
         sessionQueue.async { [weak self] in
             guard let self else { return }
+            self.wantsSessionRunning = true
             do {
                 if !self.isConfigured { try self.configureSession() }
-                guard !self.session.isRunning else { return }
-                self.session.startRunning()
-                DispatchQueue.main.async { self.isRunning = true }
+                self.startSessionIfNeeded()
             } catch {
                 DispatchQueue.main.async { self.errorMessage = error.localizedDescription }
             }
+        }
+    }
+
+    private func startSessionIfNeeded() {
+        guard wantsSessionRunning else { return }
+        if !session.isRunning { session.startRunning() }
+        let running = session.isRunning
+        DispatchQueue.main.async {
+            self.isRunning = running
+            if running { self.authorizationDenied = false }
+        }
+    }
+
+    @objc private func sessionWasInterrupted(_ notification: Notification) {
+        DispatchQueue.main.async { self.isRunning = false }
+    }
+
+    @objc private func sessionInterruptionEnded(_ notification: Notification) {
+        restartSessionWhenAppropriate()
+    }
+
+    @objc private func sessionRuntimeError(_ notification: Notification) {
+        if let error = notification.userInfo?[AVCaptureSessionErrorKey] as? AVError {
+            DispatchQueue.main.async { self.errorMessage = error.localizedDescription }
+        }
+        restartSessionWhenAppropriate()
+    }
+
+    @objc private func applicationDidBecomeActive(_ notification: Notification) {
+        restartSessionWhenAppropriate()
+    }
+
+    private func restartSessionWhenAppropriate() {
+        sessionQueue.async { [weak self] in
+            self?.startSessionIfNeeded()
         }
     }
 
