@@ -144,7 +144,13 @@ final class CameraService: NSObject, ObservableObject {
         defer { session.commitConfiguration() }
         session.sessionPreset = .photo
 
-        guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
+        let discoverySession = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.builtInUltraWideCamera, .builtInWideAngleCamera],
+            mediaType: .video,
+            position: .back
+        )
+        guard let camera = discoverySession.devices.first(where: { $0.deviceType == .builtInUltraWideCamera })
+                ?? discoverySession.devices.first(where: { $0.deviceType == .builtInWideAngleCamera }) else {
             throw CameraError.cameraUnavailable
         }
         self.camera = camera
