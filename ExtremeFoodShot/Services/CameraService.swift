@@ -1,6 +1,8 @@
 import AVFoundation
+import CoreImage
 import Photos
 import SwiftUI
+import UIKit
 
 final class CameraService: NSObject, ObservableObject {
     let session = AVCaptureSession()
@@ -17,10 +19,18 @@ final class CameraService: NSObject, ObservableObject {
     private let frameQueue = DispatchQueue(label: "camera.frame.queue")
     private let photoOutput = AVCapturePhotoOutput()
     private let videoOutput = AVCaptureVideoDataOutput()
+    private let imageContext = CIContext(options: [.cacheIntermediates: false])
     private var camera: AVCaptureDevice?
     private var isConfigured = false
     private var pending: [Int64: PendingCapture] = [:]
     private let pendingLock = NSLock()
+    private var frameBuffer: [BufferedFrame] = []
+    private var lastBufferedFrameTime: TimeInterval = 0
+
+    private struct BufferedFrame {
+        let pixelBuffer: CVPixelBuffer
+        let metrics: FrameMetrics
+    }
 
     private struct PendingCapture {
         let motion: MotionSnapshot
@@ -102,6 +112,55 @@ final class CameraService: NSObject, ObservableObject {
         }
     }
 
+    /// Keeps the existing motion trigger, but chooses candidates from frames captured
+    /// shortly before and after that trigger instead of relying on one delayed shutter.
+    func captureBufferedBurst(
+        motion: MotionSnapshot,
+        lighting: LightingMode,
+        maximumCount: Int = 3
+    ) {
+        guard maximumCount > 0 else { return }
+        DispatchQueue.main.async { self.isCapturing = true }
+
+        frameQueue.async { [weak self] in
+            guard let self, let triggerFrame = self.frameBuffer.last else {
+                DispatchQueue.main.async { self?.isCapturing = false }
+                return
+            }
+            let triggerTime = triggerFrame.metrics.timestamp
+
+            self.frameQueue.asyncAfter(deadline: .now() + 0.30) { [weak self] in
+                guard let self else { return }
+                let frames = self.frameBuffer.filter {
+                    $0.metrics.timestamp >= triggerTime - 0.20
+                        && $0.metrics.timestamp <= triggerTime + 0.30
+                }
+                let selected = self.bestBufferedFrames(
+                    from: frames,
+                    maximumCount: maximumCount
+                )
+                let candidates = selected.compactMap { frame -> CaptureCandidate? in
+                    guard let data = self.jpegData(from: frame.pixelBuffer) else { return nil }
+                    return CaptureCandidate(
+                        imageData: data,
+                        capturedAt: Date(),
+                        motion: motion,
+                        frame: frame.metrics,
+                        lightingMode: lighting,
+                        exposureDuration: nil,
+                        iso: nil
+                    )
+                }
+
+                DispatchQueue.main.async {
+                    self.candidates.append(contentsOf: candidates)
+                    self.candidates.sort { $0.recommendationScore > $1.recommendationScore }
+                    self.isCapturing = false
+                }
+            }
+        }
+    }
+
     func clearCandidates() {
         candidates.removeAll()
     }
@@ -176,6 +235,38 @@ final class CameraService: NSObject, ObservableObject {
         videoOutput.setSampleBufferDelegate(self, queue: frameQueue)
         if session.canAddOutput(videoOutput) { session.addOutput(videoOutput) }
         isConfigured = true
+    }
+
+    private func bestBufferedFrames(
+        from frames: [BufferedFrame],
+        maximumCount: Int
+    ) -> [BufferedFrame] {
+        let ranked = frames.sorted { bufferedFrameScore($0) > bufferedFrameScore($1) }
+        var selected: [BufferedFrame] = []
+        for frame in ranked {
+            guard selected.allSatisfy({
+                abs($0.metrics.timestamp - frame.metrics.timestamp) >= 0.06
+            }) else { continue }
+            selected.append(frame)
+            if selected.count == maximumCount { break }
+        }
+        return selected
+    }
+
+    private func bufferedFrameScore(_ frame: BufferedFrame) -> Double {
+        let exposure = (0.12...0.92).contains(frame.metrics.brightness) ? 20.0 : 5.0
+        let detail = min(frame.metrics.edgeEnergy / 18, 1) * 25
+        return exposure + detail
+    }
+
+    private func jpegData(from pixelBuffer: CVPixelBuffer) -> Data? {
+        let image = CIImage(cvPixelBuffer: pixelBuffer).oriented(.right)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        return imageContext.jpegRepresentation(
+            of: image,
+            colorSpace: colorSpace,
+            options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.92]
+        )
     }
 }
 
@@ -253,6 +344,11 @@ extension CameraService: AVCaptureVideoDataOutputSampleBufferDelegate {
             edgeEnergy: edges / Double(samples),
             timestamp: CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
         )
+        if next.timestamp - lastBufferedFrameTime >= 1.0 / 15.0 {
+            frameBuffer.append(BufferedFrame(pixelBuffer: buffer, metrics: next))
+            lastBufferedFrameTime = next.timestamp
+            frameBuffer.removeAll { $0.metrics.timestamp < next.timestamp - 0.65 }
+        }
         DispatchQueue.main.async { self.frameMetrics = next }
     }
 }

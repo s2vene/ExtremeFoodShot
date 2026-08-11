@@ -17,8 +17,9 @@ final class ExperimentViewModel: ObservableObject {
             guard let self,
                   self.isExperimentRunning,
                   self.automaticCapture,
+                  !self.camera.isCapturing,
                   self.camera.candidates.count < self.maximumCandidates else { return }
-            self.capture(snapshot: snapshot)
+            self.captureBufferedBurst(snapshot: snapshot)
         }
     }
 
@@ -47,17 +48,22 @@ final class ExperimentViewModel: ObservableObject {
     }
 
     func manualCapture() {
-        capture(snapshot: motion.snapshot)
+        statusMessage = "찰칵 · 수동 촬영"
+        camera.capture(motion: motion.snapshot, lighting: lightingMode)
     }
 
-    private func capture(snapshot: MotionSnapshot) {
+    private func captureBufferedBurst(snapshot: MotionSnapshot) {
         statusMessage = "찰칵 · \(snapshot.phase.rawValue)"
-        camera.capture(motion: snapshot, lighting: lightingMode)
-        if camera.candidates.count + 1 >= maximumCandidates {
+        let remainingCount = max(0, maximumCandidates - camera.candidates.count)
+        camera.captureBufferedBurst(
+            motion: snapshot,
+            lighting: lightingMode,
+            maximumCount: min(3, remainingCount)
+        )
+        if camera.candidates.count + min(3, remainingCount) >= maximumCandidates {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
                 self?.finishExperiment()
             }
         }
     }
 }
-
