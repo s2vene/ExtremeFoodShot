@@ -19,7 +19,7 @@ final class ExperimentViewModel: ObservableObject {
                   self.automaticCapture,
                   !self.camera.isCapturing,
                   self.camera.candidates.count < self.maximumCandidates else { return }
-            self.captureBufferedBurst(snapshot: snapshot)
+            self.captureAutomatically(snapshot: snapshot)
         }
     }
 
@@ -52,15 +52,24 @@ final class ExperimentViewModel: ObservableObject {
         camera.capture(motion: motion.snapshot, lighting: lightingMode)
     }
 
-    private func captureBufferedBurst(snapshot: MotionSnapshot) {
+    private func captureAutomatically(snapshot: MotionSnapshot) {
         statusMessage = "찰칵 · \(snapshot.phase.rawValue)"
         let remainingCount = max(0, maximumCandidates - camera.candidates.count)
-        camera.captureBufferedBurst(
-            motion: snapshot,
-            lighting: lightingMode,
-            maximumCount: min(camera.bufferedCandidateCount, remainingCount)
-        )
-        if camera.candidates.count + min(camera.bufferedCandidateCount, remainingCount) >= maximumCandidates {
+        let expectedCount: Int
+        switch camera.automaticCaptureMode {
+        case .photo:
+            camera.capture(motion: snapshot, lighting: lightingMode)
+            expectedCount = 1
+        case .bufferedFrames:
+            let burstCount = min(camera.bufferedCandidateCount, remainingCount)
+            camera.captureBufferedBurst(
+                motion: snapshot,
+                lighting: lightingMode,
+                maximumCount: burstCount
+            )
+            expectedCount = burstCount
+        }
+        if camera.candidates.count + expectedCount >= maximumCandidates {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
                 self?.finishExperiment()
             }

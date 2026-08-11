@@ -44,6 +44,12 @@ enum CaptureQualityPreset: String, CaseIterable, Identifiable {
     var id: Self { self }
 }
 
+enum AutomaticCaptureMode: String, CaseIterable, Identifiable {
+    case photo = "고화질 사진"
+    case bufferedFrames = "전후 영상 프레임"
+    var id: Self { self }
+}
+
 enum MotionPhase: String {
     case idle = "대기"
     case movingDown = "아래로 이동"

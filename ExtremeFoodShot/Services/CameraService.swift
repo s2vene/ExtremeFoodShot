@@ -19,7 +19,8 @@ final class CameraService: NSObject, ObservableObject {
     @Published private(set) var supportsDepth = false
     @Published private(set) var supportsRAW = false
     @Published private(set) var supportsProRAW = false
-    @Published var selectedLens: CameraLens = .ultraWide
+    @Published var selectedLens: CameraLens = .wide
+    @Published var automaticCaptureMode: AutomaticCaptureMode = .photo
     @Published var exposurePreset: ExposurePreset = .automatic
     @Published var focusPreset: FocusPreset = .continuous
     @Published var whiteBalancePreset: WhiteBalancePreset = .automatic
@@ -364,25 +365,8 @@ final class CameraService: NSObject, ObservableObject {
         defer { session.commitConfiguration() }
         session.sessionPreset = .photo
 
-        let discoverySession = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [
-                .builtInTripleCamera,
-                .builtInDualWideCamera,
-                .builtInUltraWideCamera,
-                .builtInWideAngleCamera
-            ],
-            mediaType: .video,
-            position: .back
-        )
-        let preferredTypes: [AVCaptureDevice.DeviceType] = [
-            .builtInTripleCamera,
-            .builtInDualWideCamera,
-            .builtInUltraWideCamera,
-            .builtInWideAngleCamera
-        ]
-        guard let camera = preferredTypes.lazy.compactMap({ type in
-            discoverySession.devices.first(where: { $0.deviceType == type })
-        }).first else {
+        guard let camera = cameraDevice(for: selectedLens)
+                ?? cameraDevice(for: .wide) else {
             throw CameraError.cameraUnavailable
         }
         self.camera = camera
@@ -390,16 +374,7 @@ final class CameraService: NSObject, ObservableObject {
         guard session.canAddInput(input) else { throw CameraError.configurationFailed }
         session.addInput(input)
         cameraInput = input
-        let usesUltraWide = camera.deviceType == .builtInUltraWideCamera
-            || camera.deviceType == .builtInDualWideCamera
-            || camera.deviceType == .builtInTripleCamera
-        selectedLens = usesUltraWide ? .ultraWide : .wide
-
-        if usesUltraWide {
-            try camera.lockForConfiguration()
-            camera.videoZoomFactor = camera.minAvailableVideoZoomFactor
-            camera.unlockForConfiguration()
-        }
+        selectedLens = camera.deviceType == .builtInUltraWideCamera ? .ultraWide : .wide
 
         guard session.canAddOutput(photoOutput) else { throw CameraError.configurationFailed }
         session.addOutput(photoOutput)
@@ -582,7 +557,9 @@ final class CameraService: NSObject, ObservableObject {
         from frames: [BufferedFrame],
         maximumCount: Int
     ) -> [BufferedFrame] {
-        let ranked = frames.sorted { bufferedFrameScore($0) > bufferedFrameScore($1) }
+        let ranked = frames
+            .filter { $0.metrics.brightness >= 0.08 }
+            .sorted { bufferedFrameScore($0) > bufferedFrameScore($1) }
         var selected: [BufferedFrame] = []
         for frame in ranked {
             guard selected.allSatisfy({

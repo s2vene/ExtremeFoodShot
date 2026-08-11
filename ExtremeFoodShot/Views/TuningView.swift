@@ -16,6 +16,18 @@ struct TuningView: View {
         NavigationStack {
             Form {
                 Section("자동 촬영 판단") {
+                    Picker("자동 촬영 방식", selection: $model.camera.automaticCaptureMode) {
+                        ForEach(AutomaticCaptureMode.allCases) { Text($0.rawValue).tag($0) }
+                    }
+
+                    if model.camera.automaticCaptureMode == .bufferedFrames {
+                        Label(
+                            "영상 프레임 모드는 셔터음과 사진 플래시가 없고 해상도가 낮습니다.",
+                            systemImage: "exclamationmark.triangle"
+                        )
+                        .foregroundStyle(.orange)
+                    }
+
                     VStack(alignment: .leading) {
                         HStack {
                             Text("광축 가속 임계값")
