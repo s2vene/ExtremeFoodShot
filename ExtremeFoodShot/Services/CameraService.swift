@@ -45,6 +45,10 @@ final class CameraService: NSObject, ObservableObject {
     private var frameBuffer: [BufferedFrame] = []
     private var lastBufferedFrameTime: TimeInterval = 0
     private var wantsSessionRunning = false
+    private var hasReceivedFrame = false
+    private let frameStateLock = NSLock()
+    private var recoveryAttempt = 0
+    private var sessionGeneration = 0
 
     private struct BufferedFrame {
         let pixelBuffer: CVPixelBuffer
@@ -256,7 +260,15 @@ final class CameraService: NSObject, ObservableObject {
 
     private func startSessionIfNeeded() {
         guard wantsSessionRunning else { return }
-        if !session.isRunning { session.startRunning() }
+        if !session.isRunning {
+            frameStateLock.lock()
+            hasReceivedFrame = false
+            frameStateLock.unlock()
+            sessionGeneration += 1
+            let generation = sessionGeneration
+            session.startRunning()
+            scheduleFrameWatchdog(for: generation)
+        }
         let running = session.isRunning
         DispatchQueue.main.async {
             self.isRunning = running
@@ -276,7 +288,7 @@ final class CameraService: NSObject, ObservableObject {
         if let error = notification.userInfo?[AVCaptureSessionErrorKey] as? AVError {
             DispatchQueue.main.async { self.errorMessage = error.localizedDescription }
         }
-        restartSessionWhenAppropriate()
+        recoverSession()
     }
 
     @objc private func applicationDidBecomeActive(_ notification: Notification) {
@@ -289,18 +301,88 @@ final class CameraService: NSObject, ObservableObject {
         }
     }
 
+    private func scheduleFrameWatchdog(for generation: Int) {
+        sessionQueue.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self,
+                  self.wantsSessionRunning,
+                  self.sessionGeneration == generation,
+                  !self.hasReceivedVideoFrame else { return }
+            self.recoverSessionOnSessionQueue()
+        }
+    }
+
+    private var hasReceivedVideoFrame: Bool {
+        frameStateLock.lock()
+        defer { frameStateLock.unlock() }
+        return hasReceivedFrame
+    }
+
+    private func confirmVideoFrameDelivery() {
+        frameStateLock.lock()
+        let isFirstFrame = !hasReceivedFrame
+        hasReceivedFrame = true
+        frameStateLock.unlock()
+        guard isFirstFrame else { return }
+        sessionQueue.async { [weak self] in self?.recoveryAttempt = 0 }
+    }
+
+    private func recoverSession() {
+        sessionQueue.async { [weak self] in
+            self?.recoverSessionOnSessionQueue()
+        }
+    }
+
+    private func recoverSessionOnSessionQueue() {
+        guard wantsSessionRunning, recoveryAttempt < 3 else { return }
+        recoveryAttempt += 1
+        sessionGeneration += 1
+        if session.isRunning { session.stopRunning() }
+
+        session.beginConfiguration()
+        session.inputs.forEach(session.removeInput)
+        session.outputs.forEach(session.removeOutput)
+        session.commitConfiguration()
+        camera = nil
+        cameraInput = nil
+        isConfigured = false
+
+        let retryDelay = Double(recoveryAttempt) * 0.35
+        sessionQueue.asyncAfter(deadline: .now() + retryDelay) { [weak self] in
+            guard let self, self.wantsSessionRunning else { return }
+            do {
+                try self.configureSession()
+                self.startSessionIfNeeded()
+            } catch {
+                DispatchQueue.main.async { self.errorMessage = error.localizedDescription }
+                self.recoverSessionOnSessionQueue()
+            }
+        }
+    }
+
     private func configureSession() throws {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
         session.sessionPreset = .photo
 
         let discoverySession = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [.builtInUltraWideCamera, .builtInWideAngleCamera],
+            deviceTypes: [
+                .builtInTripleCamera,
+                .builtInDualWideCamera,
+                .builtInUltraWideCamera,
+                .builtInWideAngleCamera
+            ],
             mediaType: .video,
             position: .back
         )
-        guard let camera = discoverySession.devices.first(where: { $0.deviceType == .builtInUltraWideCamera })
-                ?? discoverySession.devices.first(where: { $0.deviceType == .builtInWideAngleCamera }) else {
+        let preferredTypes: [AVCaptureDevice.DeviceType] = [
+            .builtInTripleCamera,
+            .builtInDualWideCamera,
+            .builtInUltraWideCamera,
+            .builtInWideAngleCamera
+        ]
+        guard let camera = preferredTypes.lazy.compactMap({ type in
+            discoverySession.devices.first(where: { $0.deviceType == type })
+        }).first else {
             throw CameraError.cameraUnavailable
         }
         self.camera = camera
@@ -308,7 +390,16 @@ final class CameraService: NSObject, ObservableObject {
         guard session.canAddInput(input) else { throw CameraError.configurationFailed }
         session.addInput(input)
         cameraInput = input
-        selectedLens = camera.deviceType == .builtInUltraWideCamera ? .ultraWide : .wide
+        let usesUltraWide = camera.deviceType == .builtInUltraWideCamera
+            || camera.deviceType == .builtInDualWideCamera
+            || camera.deviceType == .builtInTripleCamera
+        selectedLens = usesUltraWide ? .ultraWide : .wide
+
+        if usesUltraWide {
+            try camera.lockForConfiguration()
+            camera.videoZoomFactor = camera.minAvailableVideoZoomFactor
+            camera.unlockForConfiguration()
+        }
 
         guard session.canAddOutput(photoOutput) else { throw CameraError.configurationFailed }
         session.addOutput(photoOutput)
@@ -566,6 +657,7 @@ extension CameraService: AVCaptureVideoDataOutputSampleBufferDelegate {
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
+        confirmVideoFrameDelivery()
         guard let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         CVPixelBufferLockBaseAddress(buffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
