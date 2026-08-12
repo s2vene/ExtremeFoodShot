@@ -1,8 +1,10 @@
 import Foundation
 
+@MainActor
 final class ExperimentViewModel: ObservableObject {
     var camera = CameraService()
     let motion = MotionAnalyzer()
+    let album = AlbumStore()
 
     let lightingMode: LightingMode = .torch
     @Published var maximumCandidates: Int {
@@ -18,6 +20,7 @@ final class ExperimentViewModel: ObservableObject {
     @Published var showResults = false
     @Published private(set) var isExperimentRunning = false
     @Published var statusMessage = "음식을 화면 중앙에 맞춰주세요"
+    private var didArchiveCurrentSession = false
 
     init() {
         let savedMaximum = UserDefaults.standard.integer(forKey: "maximumCandidates")
@@ -43,6 +46,7 @@ final class ExperimentViewModel: ObservableObject {
 
     func beginExperiment() {
         camera.clearCandidates()
+        didArchiveCurrentSession = false
         isExperimentRunning = true
         statusMessage = "휴대폰을 위아래로 움직여주세요"
         camera.setTorch(enabled: true)
@@ -52,6 +56,10 @@ final class ExperimentViewModel: ObservableObject {
         isExperimentRunning = false
         camera.setTorch(enabled: false)
         statusMessage = "베스트 샷을 확인해보세요"
+        if !didArchiveCurrentSession, !camera.candidates.isEmpty {
+            album.archive(camera.candidates)
+            didArchiveCurrentSession = true
+        }
         showResults = !camera.candidates.isEmpty
     }
 

@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var model = ExperimentViewModel()
     @State private var showSettings = false
+    @State private var showAlbum = false
 
     var body: some View {
         ZStack {
@@ -33,6 +34,9 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             TuningView(model: model, motion: model.motion)
         }
+        .sheet(isPresented: $showAlbum) {
+            AlbumView(album: model.album)
+        }
         .alert("카메라 오류", isPresented: Binding(
             get: { model.camera.errorMessage != nil },
             set: { if !$0 { model.camera.errorMessage = nil } }
@@ -40,6 +44,14 @@ struct ContentView: View {
             Button("확인", role: .cancel) { model.camera.errorMessage = nil }
         } message: {
             Text(model.camera.errorMessage ?? "")
+        }
+        .alert("앨범 오류", isPresented: Binding(
+            get: { model.album.errorMessage != nil },
+            set: { if !$0 { model.album.errorMessage = nil } }
+        )) {
+            Button("확인", role: .cancel) { model.album.errorMessage = nil }
+        } message: {
+            Text(model.album.errorMessage ?? "")
         }
     }
 
@@ -53,6 +65,14 @@ struct ContentView: View {
                         .foregroundStyle(.white.opacity(0.8))
                 }
                 Spacer()
+                Button {
+                    showAlbum = true
+                } label: {
+                    Image(systemName: "photo.stack.fill")
+                        .frame(width: 40, height: 40)
+                        .background(.white.opacity(0.14), in: Circle())
+                }
+                .disabled(model.isExperimentRunning)
                 Button {
                     showSettings = true
                 } label: {
