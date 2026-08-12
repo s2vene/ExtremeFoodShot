@@ -21,7 +21,7 @@ final class CameraService: NSObject, ObservableObject {
     @Published private(set) var supportsProRAW = false
     @Published var selectedLens: CameraLens = .ultraWide
     @Published private(set) var automaticCaptureMode: AutomaticCaptureMode = .photo
-    @Published private(set) var exposurePreset: ExposurePreset = .automatic
+    @Published private(set) var exposurePreset: ExposurePreset = .slow
     @Published private(set) var focusPreset: FocusPreset = .continuous
     @Published private(set) var whiteBalancePreset: WhiteBalancePreset = .automatic
     @Published private(set) var captureQuality: CaptureQualityPreset = .speed
