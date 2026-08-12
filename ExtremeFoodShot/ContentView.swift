@@ -5,29 +5,28 @@ struct ContentView: View {
     private let startsCaptureServices: Bool
     @State private var showSettings = false
     @State private var showAlbum = false
-
+    
     @MainActor
     init(startsCaptureServices: Bool = true) {
         _model = StateObject(wrappedValue: ExperimentViewModel())
         self.startsCaptureServices = startsCaptureServices
     }
-
+    
     var body: some View {
         ZStack {
             CameraPreview(session: model.camera.session)
                 .ignoresSafeArea()
-
+            
             LinearGradient(
                 colors: [.black.opacity(0.55), .clear, .black.opacity(0.78)],
                 startPoint: .top,
                 endPoint: .bottom
             )
             .ignoresSafeArea()
-
+            
             VStack(spacing: 14) {
                 header
                 Spacer()
-                captureGuide
                 controls
             }
             .padding()
@@ -65,46 +64,37 @@ struct ContentView: View {
             Text(model.album.errorMessage ?? "")
         }
     }
-
+    
     private var header: some View {
         VStack(spacing: 8) {
             HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Best Shot").font(.title2.bold())
-                    Text(model.statusMessage)
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.8))
-                }
+                
+                Image("logo")
+                    .resizable()
+                    .frame(width:50, height: 50)
+                
                 Spacer()
                 Button {
                     showAlbum = true
                 } label: {
                     Image(systemName: "photo.stack.fill")
-                        .frame(width: 40, height: 40)
-                        .background(.white.opacity(0.14), in: Circle())
+                        .foregroundStyle(Color.fsWhite)
+                    
                 }
+                .buttonStyle(.glass)
                 .disabled(model.isExperimentRunning)
+                
                 Button {
                     showSettings = true
                 } label: {
-                    Image(systemName: "gearshape.fill")
-                        .frame(width: 40, height: 40)
-                        .background(.white.opacity(0.14), in: Circle())
+                    Image(systemName: "gearshape")
+                        .foregroundStyle(Color.fsWhite)
                 }
+                .buttonStyle(.glass)
                 .disabled(model.isExperimentRunning)
             }
-
-            HStack {
-                Label(
-                    "초광각 · 셔터 \(model.camera.exposurePreset.shortLabel)",
-                    systemImage: "camera.aperture"
-                )
-                Spacer()
-                Label("\(model.camera.candidates.count)/\(model.maximumCandidates)", systemImage: "photo.stack.fill")
-                    .monospacedDigit()
-            }
-            .font(.caption.weight(.semibold))
-
+            
+            
             if model.camera.authorizationDenied {
                 Label("설정에서 카메라 권한을 허용해 주세요.", systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.yellow)
@@ -114,66 +104,76 @@ struct ContentView: View {
                     .foregroundStyle(.yellow)
             }
         }
-        .padding(14)
-        .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 16))
     }
-
-    private var captureGuide: some View {
-        VStack(spacing: 12) {
-            Image(systemName: model.isExperimentRunning ? "arrow.up.and.down" : "viewfinder")
-                .font(.system(size: 34, weight: .light))
-            Text(model.isExperimentRunning ? "음식 위에서 부드럽게 움직이세요" : "음식을 가이드 안에 담아주세요")
-                .font(.headline)
-            if model.isExperimentRunning {
-                Text("움직임이 바뀌는 순간 자동으로 촬영합니다")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.72))
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 18)
-        .background(.black.opacity(0.38), in: RoundedRectangle(cornerRadius: 20))
-    }
-
+    
+    
     private var controls: some View {
         VStack(spacing: 14) {
-            HStack(spacing: 14) {
+            
+            Text(model.isExperimentRunning
+                 ? "\(model.camera.candidates.count) / \(model.maximumCandidates)"
+                 : "0 / \(model.maximumCandidates)")
+            .font(.caption)
+            .foregroundStyle(Color.fsWhite)
+            
+            
+            HStack(spacing: 20) {
+                
+                Button {
+                    model.showResults = true
+                } label: {
+                    HStack(spacing:-2){
+                        Image(systemName: "chevron.compact.left")
+                        Image(systemName: "photo.on.rectangle.angled")
+                }
+                        .font(.body)
+                        .padding(.vertical, 10)
+                        .foregroundStyle(Color.fsWhite)
+                        
+                }
+                .buttonStyle(.glass)
+                .disabled(model.camera.candidates.isEmpty || model.isExperimentRunning)
+                
+                
                 Button {
                     if model.isExperimentRunning { model.finishExperiment() }
                     else { model.beginExperiment() }
                 } label: {
-                    Label(
-                        model.isExperimentRunning ? "촬영 완료" : "자동 촬영 시작",
-                        systemImage: model.isExperimentRunning ? "stop.fill" : "camera.fill"
-                    )
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(model.isExperimentRunning ? Color.red : Color.orange, in: Capsule())
+                    Label("",
+                    systemImage: model.isExperimentRunning ? "stop.fill" : "camera.fill"
+                          )
+                    .labelStyle(.iconOnly)
+                    .font(.title2)
                 }
-
+                .foregroundStyle(Color.fsNavy)
+                .frame(width: 85, height: 85)
+                .background(model.isExperimentRunning ? Color.red : Color.fsLime, in: Capsule())
+                
                 Button {
-                    model.showResults = true
+                    ()
                 } label: {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.title2)
-                        .frame(width: 54, height: 54)
-                        .background(.white.opacity(0.2), in: Circle())
+                    HStack(spacing:-2){
+                        Image(systemName: "chevron.compact.left")
+                        Image(systemName: "photo.on.rectangle.angled")
                 }
-                .disabled(model.camera.candidates.isEmpty || model.isExperimentRunning)
+                        .font(.body)
+                        .padding(.vertical, 10)
+                        
+                }
+                .buttonStyle(.glass)
+                .opacity(0)
+                
+                
             }
-
-            Text(model.isExperimentRunning
-                 ? "\(model.maximumCandidates - model.camera.candidates.count)장의 후보를 더 촬영할 수 있어요"
-                 : "최대 \(model.maximumCandidates)장의 후보 중 베스트 샷을 골라드려요")
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.7))
+            
+            
         }
-        .padding(14)
-        .background(.black.opacity(0.58), in: RoundedRectangle(cornerRadius: 18))
+        
+        
     }
-
+    
 }
+
 
 #if DEBUG
 #Preview("메인 촬영 화면") {

@@ -56,3 +56,9 @@ extension Font {
     
 }
 
+
+extension Color {
+    static let fsNavy = Color("fsnavy")
+    static let fsLime = Color("fslime")
+    static let fsWhite = Color("fswhite")
+}
