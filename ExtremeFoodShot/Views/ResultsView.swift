@@ -74,13 +74,8 @@ private struct CandidateCard: View {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                 }
             }
-            Text("\(candidate.motion.phase.rawValue) · \(candidate.lightingMode.rawValue)")
-            Text("\(candidate.testSettings.lens.rawValue) · \(candidate.testSettings.exposure.rawValue)")
-            Text("\(candidate.testSettings.focus.rawValue) · \(candidate.testSettings.quality.rawValue)")
-            Text(String(format: "축 %.2fg · 회전 %.2f rad/s", candidate.motion.axialAcceleration, candidate.motion.rotationMagnitude))
-            if let exposure = candidate.exposureDuration, let iso = candidate.iso {
-                Text(String(format: "노출 1/%.0f초 · ISO %.0f", 1 / exposure, iso))
-            }
+            Text(candidate.isSelected ? "선택한 사진" : "탭해서 선택")
+                .foregroundStyle(.secondary)
         }
         .font(.caption)
         .padding(10)

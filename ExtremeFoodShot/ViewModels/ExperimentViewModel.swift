@@ -4,19 +4,27 @@ final class ExperimentViewModel: ObservableObject {
     var camera = CameraService()
     let motion = MotionAnalyzer()
 
-    @Published var lightingMode: LightingMode = .torch
-    @Published var automaticCapture = true
-    @Published var maximumCandidates = 8
+    let lightingMode: LightingMode = .torch
+    @Published var maximumCandidates: Int {
+        didSet {
+            let validValue = min(max(maximumCandidates, 3), 15)
+            if maximumCandidates != validValue {
+                maximumCandidates = validValue
+            } else {
+                UserDefaults.standard.set(validValue, forKey: "maximumCandidates")
+            }
+        }
+    }
     @Published var showResults = false
-    @Published var statusMessage = "기기를 음식 위에서 준비하세요"
-
-    private var isExperimentRunning = false
+    @Published private(set) var isExperimentRunning = false
+    @Published var statusMessage = "음식을 화면 중앙에 맞춰주세요"
 
     init() {
+        let savedMaximum = UserDefaults.standard.integer(forKey: "maximumCandidates")
+        maximumCandidates = savedMaximum == 0 ? 8 : min(max(savedMaximum, 3), 15)
         motion.onTrigger = { [weak self] snapshot in
             guard let self,
                   self.isExperimentRunning,
-                  self.automaticCapture,
                   !self.camera.isCapturing,
                   self.camera.candidates.count < self.maximumCandidates else { return }
             self.captureAutomatically(snapshot: snapshot)
@@ -36,24 +44,24 @@ final class ExperimentViewModel: ObservableObject {
     func beginExperiment() {
         camera.clearCandidates()
         isExperimentRunning = true
-        statusMessage = "위아래로 움직이세요"
-        camera.setTorch(enabled: lightingMode == .torch)
+        statusMessage = "휴대폰을 위아래로 움직여주세요"
+        camera.setTorch(enabled: true)
     }
 
     func finishExperiment() {
         isExperimentRunning = false
         camera.setTorch(enabled: false)
-        statusMessage = "촬영 완료"
+        statusMessage = "베스트 샷을 확인해보세요"
         showResults = !camera.candidates.isEmpty
     }
 
     func manualCapture() {
-        statusMessage = "찰칵 · 수동 촬영"
+        statusMessage = "사진을 촬영했어요"
         camera.capture(motion: motion.snapshot, lighting: lightingMode)
     }
 
     private func captureAutomatically(snapshot: MotionSnapshot) {
-        statusMessage = "찰칵 · \(snapshot.phase.rawValue)"
+        statusMessage = "좋은 순간을 포착했어요"
         let remainingCount = max(0, maximumCandidates - camera.candidates.count)
         let expectedCount: Int
         switch camera.automaticCaptureMode {

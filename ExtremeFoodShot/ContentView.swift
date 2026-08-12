@@ -2,8 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var model = ExperimentViewModel()
-    @State private var isExperimentActive = false
-    @State private var showTuning = false
+    @State private var showSettings = false
 
     var body: some View {
         ZStack {
@@ -20,7 +19,7 @@ struct ContentView: View {
             VStack(spacing: 14) {
                 header
                 Spacer()
-                diagnostics
+                captureGuide
                 controls
             }
             .padding()
@@ -31,7 +30,7 @@ struct ContentView: View {
         .sheet(isPresented: $model.showResults) {
             ResultsView(camera: model.camera)
         }
-        .sheet(isPresented: $showTuning) {
+        .sheet(isPresented: $showSettings) {
             TuningView(model: model, motion: model.motion)
         }
         .alert("카메라 오류", isPresented: Binding(
@@ -45,22 +44,32 @@ struct ContentView: View {
     }
 
     private var header: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("EXTREME FOOD SHOT").font(.caption.bold())
-                    Text(model.statusMessage).font(.headline)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Best Shot").font(.title2.bold())
+                    Text(model.statusMessage)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.8))
                 }
                 Spacer()
                 Button {
-                    showTuning = true
+                    showSettings = true
                 } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .frame(width: 32, height: 32)
+                    Image(systemName: "gearshape.fill")
+                        .frame(width: 40, height: 40)
+                        .background(.white.opacity(0.14), in: Circle())
                 }
-                Label("\(model.camera.candidates.count)/\(model.maximumCandidates)", systemImage: "photo.stack")
-                    .font(.subheadline.monospacedDigit())
+                .disabled(model.isExperimentRunning)
             }
+
+            HStack {
+                Label("초광각 · 자동 촬영", systemImage: "camera.aperture")
+                Spacer()
+                Label("\(model.camera.candidates.count)/\(model.maximumCandidates)", systemImage: "photo.stack.fill")
+                    .monospacedDigit()
+            }
+            .font(.caption.weight(.semibold))
 
             if model.camera.authorizationDenied {
                 Label("설정에서 카메라 권한을 허용해 주세요.", systemImage: "exclamationmark.triangle.fill")
@@ -75,54 +84,38 @@ struct ContentView: View {
         .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 16))
     }
 
-    private var diagnostics: some View {
-        VStack(spacing: 10) {
-            HStack {
-                metric("상태", model.motion.snapshot.phase.rawValue)
-                metric("축 가속", String(format: "%.2fg", model.motion.snapshot.axialAcceleration))
-                metric("회전", String(format: "%.2f", model.motion.snapshot.rotationMagnitude))
-                metric("밝기", "\(Int(model.camera.frameMetrics.brightness * 100))%")
+    private var captureGuide: some View {
+        VStack(spacing: 12) {
+            Image(systemName: model.isExperimentRunning ? "arrow.up.and.down" : "viewfinder")
+                .font(.system(size: 34, weight: .light))
+            Text(model.isExperimentRunning ? "음식 위에서 부드럽게 움직이세요" : "음식을 가이드 안에 담아주세요")
+                .font(.headline)
+            if model.isExperimentRunning {
+                Text("움직임이 바뀌는 순간 자동으로 촬영합니다")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.72))
             }
-            MotionGraph(samples: model.motion.axialHistory, threshold: model.motion.triggerThreshold)
         }
-        .padding(12)
-        .background(.black.opacity(0.42), in: RoundedRectangle(cornerRadius: 16))
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 18)
+        .background(.black.opacity(0.38), in: RoundedRectangle(cornerRadius: 20))
     }
 
     private var controls: some View {
-        VStack(spacing: 12) {
-            Picker("조명", selection: $model.lightingMode) {
-                ForEach(LightingMode.allCases) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .disabled(isExperimentActive)
-
-            Toggle("움직임 전환점 자동 촬영", isOn: $model.automaticCapture)
-                .tint(.orange)
-
+        VStack(spacing: 14) {
             HStack(spacing: 14) {
                 Button {
-                    model.manualCapture()
-                } label: {
-                    Image(systemName: "camera.fill")
-                        .font(.title2)
-                        .frame(width: 54, height: 54)
-                        .background(.white.opacity(0.2), in: Circle())
-                }
-
-                Button {
-                    isExperimentActive.toggle()
-                    if isExperimentActive { model.beginExperiment() }
-                    else { model.finishExperiment() }
+                    if model.isExperimentRunning { model.finishExperiment() }
+                    else { model.beginExperiment() }
                 } label: {
                     Label(
-                        isExperimentActive ? "촬영 완료" : "테스트 시작",
-                        systemImage: isExperimentActive ? "stop.fill" : "figure.wave"
+                        model.isExperimentRunning ? "촬영 완료" : "자동 촬영 시작",
+                        systemImage: model.isExperimentRunning ? "stop.fill" : "camera.fill"
                     )
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(isExperimentActive ? Color.red : Color.orange, in: Capsule())
+                    .background(model.isExperimentRunning ? Color.red : Color.orange, in: Capsule())
                 }
 
                 Button {
@@ -133,18 +126,17 @@ struct ContentView: View {
                         .frame(width: 54, height: 54)
                         .background(.white.opacity(0.2), in: Circle())
                 }
-                .disabled(model.camera.candidates.isEmpty)
+                .disabled(model.camera.candidates.isEmpty || model.isExperimentRunning)
             }
+
+            Text(model.isExperimentRunning
+                 ? "\(model.maximumCandidates - model.camera.candidates.count)장의 후보를 더 촬영할 수 있어요"
+                 : "최대 \(model.maximumCandidates)장의 후보 중 베스트 샷을 골라드려요")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.7))
         }
         .padding(14)
         .background(.black.opacity(0.58), in: RoundedRectangle(cornerRadius: 18))
     }
 
-    private func metric(_ title: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.caption2).foregroundStyle(.secondary)
-            Text(value).font(.caption.bold().monospacedDigit()).lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
 }
