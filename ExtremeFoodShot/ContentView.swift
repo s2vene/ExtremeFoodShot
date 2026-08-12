@@ -32,7 +32,7 @@ struct ContentView: View {
             ResultsView(camera: model.camera)
         }
         .sheet(isPresented: $showSettings) {
-            TuningView(model: model, motion: model.motion)
+            TuningView(model: model, motion: model.motion, camera: model.camera)
         }
         .sheet(isPresented: $showAlbum) {
             AlbumView(album: model.album)
@@ -84,7 +84,10 @@ struct ContentView: View {
             }
 
             HStack {
-                Label("초광각 · 자동 촬영", systemImage: "camera.aperture")
+                Label(
+                    "초광각 · 셔터 \(model.camera.exposurePreset.shortLabel)",
+                    systemImage: "camera.aperture"
+                )
                 Spacer()
                 Label("\(model.camera.candidates.count)/\(model.maximumCandidates)", systemImage: "photo.stack.fill")
                     .monospacedDigit()

@@ -3,6 +3,7 @@ import SwiftUI
 struct TuningView: View {
     @ObservedObject var model: ExperimentViewModel
     @ObservedObject var motion: MotionAnalyzer
+    @ObservedObject var camera: CameraService
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -26,7 +27,28 @@ struct TuningView: View {
                     settingRow("자동 촬영", value: "고화질 사진", icon: "camera.fill")
                     settingRow("렌즈", value: "0.5× 초광각", icon: "camera.aperture")
                     settingRow("조명", value: "토치 100%", icon: "flashlight.on.fill")
-                    settingRow("초점 · 노출 · 색상", value: "자동", icon: "wand.and.stars")
+                    settingRow("초점 · 색상", value: "자동", icon: "wand.and.stars")
+                }
+
+                Section {
+                    Picker("셔터 스피드", selection: exposureBinding) {
+                        ForEach(ExposurePreset.allCases) { preset in
+                            Text(preset.rawValue).tag(preset)
+                        }
+                    }
+                    .pickerStyle(.navigationLink)
+
+                    HStack {
+                        Text("현재 설정")
+                        Spacer()
+                        Text(camera.exposurePreset.shortLabel + (camera.exposurePreset == .automatic ? "" : "초"))
+                            .fontWeight(.semibold)
+                            .monospacedDigit()
+                    }
+                } header: {
+                    Text("셔터 스피드 테스트")
+                } footer: {
+                    Text("빠른 셔터는 움직임을 선명하게 멈추고, 느린 셔터는 움직임의 궤적과 블러를 더 많이 남깁니다. 같은 조명과 움직임에서 한 단계씩 바꿔 비교해보세요.")
                 }
 
                 Section {
@@ -50,6 +72,13 @@ struct TuningView: View {
                 }
             }
         }
+    }
+
+    private var exposureBinding: Binding<ExposurePreset> {
+        Binding(
+            get: { camera.exposurePreset },
+            set: { camera.setExposurePreset($0) }
+        )
     }
 
     private func settingRow(_ title: String, value: String, icon: String) -> some View {

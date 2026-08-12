@@ -76,6 +76,15 @@ private struct CandidateCard: View {
             }
             Text(candidate.isSelected ? "선택한 사진" : "탭해서 선택")
                 .foregroundStyle(.secondary)
+            HStack(spacing: 5) {
+                Image(systemName: "timer")
+                Text("설정 \(candidate.testSettings.exposure.shortLabel)")
+                if let exposure = candidate.exposureDuration {
+                    Text("· 실제 \(formattedShutterSpeed(exposure))")
+                }
+            }
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
         }
         .font(.caption)
         .padding(10)
@@ -85,5 +94,11 @@ private struct CandidateCard: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(candidate.isSelected ? Color.green : Color.clear, lineWidth: 2)
         }
+    }
+
+    private func formattedShutterSpeed(_ seconds: Double) -> String {
+        guard seconds > 0 else { return "-" }
+        if seconds >= 1 { return String(format: "%.1f초", seconds) }
+        return "1/\(Int((1 / seconds).rounded()))초"
     }
 }

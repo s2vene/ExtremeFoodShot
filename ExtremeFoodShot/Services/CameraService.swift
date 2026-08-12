@@ -432,6 +432,13 @@ final class CameraService: NSObject, ObservableObject {
         }
     }
 
+    func setExposurePreset(_ preset: ExposurePreset) {
+        exposurePreset = preset
+        sessionQueue.async { [weak self] in
+            self?.applyDeviceControls()
+        }
+    }
+
     private var photoQualityPrioritization: AVCapturePhotoOutput.QualityPrioritization {
         switch captureQuality {
         case .speed: .speed
@@ -494,25 +501,21 @@ final class CameraService: NSObject, ObservableObject {
             try camera.lockForConfiguration()
             defer { camera.unlockForConfiguration() }
 
-            switch exposurePreset {
-            case .automatic:
-                if camera.isExposureModeSupported(.continuousAutoExposure) {
-                    camera.exposureMode = .continuousAutoExposure
-                }
-            case .freeze, .balanced, .motionBlur:
-                let seconds: Double
-                switch exposurePreset {
-                case .freeze: seconds = 1.0 / 250.0
-                case .balanced: seconds = 1.0 / 60.0
-                case .motionBlur: seconds = 1.0 / 15.0
-                case .automatic: seconds = 1.0 / 60.0
-                }
+            if let seconds = exposurePreset.duration {
                 let requested = CMTime(seconds: seconds, preferredTimescale: 1_000_000_000)
                 let notBelowMinimum = CMTimeCompare(requested, camera.activeFormat.minExposureDuration) < 0
                     ? camera.activeFormat.minExposureDuration : requested
                 let duration = CMTimeCompare(notBelowMinimum, camera.activeFormat.maxExposureDuration) > 0
                     ? camera.activeFormat.maxExposureDuration : notBelowMinimum
-                camera.setExposureModeCustom(duration: duration, iso: camera.iso, completionHandler: nil)
+                camera.setExposureModeCustom(
+                    duration: duration,
+                    iso: AVCaptureDevice.currentISO,
+                    completionHandler: nil
+                )
+            } else {
+                if camera.isExposureModeSupported(.continuousAutoExposure) {
+                    camera.exposureMode = .continuousAutoExposure
+                }
             }
 
             switch focusPreset {
