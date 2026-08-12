@@ -19,13 +19,13 @@ final class CameraService: NSObject, ObservableObject {
     @Published private(set) var supportsDepth = false
     @Published private(set) var supportsRAW = false
     @Published private(set) var supportsProRAW = false
-    @Published var selectedLens: CameraLens = .wide
+    @Published var selectedLens: CameraLens = .ultraWide
     @Published var automaticCaptureMode: AutomaticCaptureMode = .photo
     @Published var exposurePreset: ExposurePreset = .automatic
     @Published var focusPreset: FocusPreset = .continuous
     @Published var whiteBalancePreset: WhiteBalancePreset = .automatic
     @Published var captureQuality: CaptureQualityPreset = .speed
-    @Published var torchLevel = 0.8
+    @Published var torchLevel = 1.0
     @Published var zeroShutterLagEnabled = false
     @Published var distortionCorrectionEnabled = false
     @Published var preTriggerDuration = 0.20
@@ -578,9 +578,39 @@ final class CameraService: NSObject, ObservableObject {
 
     private func jpegData(from pixelBuffer: CVPixelBuffer) -> Data? {
         let image = CIImage(cvPixelBuffer: pixelBuffer).oriented(.right)
+        return jpegData16By9(from: image)
+    }
+
+    private func jpegData16By9(from data: Data) -> Data? {
+        guard let image = CIImage(data: data, options: [.applyOrientationProperty: true]) else {
+            return nil
+        }
+        return jpegData16By9(from: image)
+    }
+
+    private func jpegData16By9(from image: CIImage) -> Data? {
+        let extent = image.extent.integral
+        guard extent.width > 0, extent.height > 0 else { return nil }
+        let targetRatio = 9.0 / 16.0
+        let cropWidth: CGFloat
+        let cropHeight: CGFloat
+        if extent.width / extent.height > targetRatio {
+            cropHeight = extent.height
+            cropWidth = cropHeight * targetRatio
+        } else {
+            cropWidth = extent.width
+            cropHeight = cropWidth / targetRatio
+        }
+        let cropRect = CGRect(
+            x: extent.midX - cropWidth / 2,
+            y: extent.midY - cropHeight / 2,
+            width: cropWidth,
+            height: cropHeight
+        ).integral
+        let cropped = image.cropped(to: cropRect)
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         return imageContext.jpegRepresentation(
-            of: image,
+            of: cropped,
             colorSpace: colorSpace,
             options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.92]
         )
@@ -604,7 +634,12 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
             }
             return
         }
-        guard let capture, let data = photo.fileDataRepresentation() else { return }
+        guard let capture,
+              let originalData = photo.fileDataRepresentation(),
+              let data = jpegData16By9(from: originalData) else {
+            DispatchQueue.main.async { self.isCapturing = false }
+            return
+        }
 
         let exif = photo.metadata[kCGImagePropertyExifDictionary as String] as? [String: Any]
         let exposure = exif?[kCGImagePropertyExifExposureTime as String] as? Double

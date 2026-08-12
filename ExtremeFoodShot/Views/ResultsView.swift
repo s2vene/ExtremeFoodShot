@@ -63,7 +63,7 @@ private struct CandidateCard: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
-                    .frame(height: 210)
+                    .aspectRatio(9.0 / 16.0, contentMode: .fill)
                     .clipped()
             }
             HStack {
