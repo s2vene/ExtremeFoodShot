@@ -52,7 +52,7 @@ final class CameraService: NSObject, ObservableObject {
     private var sessionGeneration = 0
 
     private struct BufferedFrame {
-        let pixelBuffer: CVPixelBuffer
+        let imageData: Data
         let metrics: FrameMetrics
     }
 
@@ -200,10 +200,9 @@ final class CameraService: NSObject, ObservableObject {
                     from: frames,
                     maximumCount: maximumCount
                 )
-                let candidates = selected.compactMap { frame -> CaptureCandidate? in
-                    guard let data = self.jpegData(from: frame.pixelBuffer) else { return nil }
-                    return CaptureCandidate(
-                        imageData: data,
+                let candidates = selected.map { frame in
+                    CaptureCandidate(
+                        imageData: frame.imageData,
                         capturedAt: Date(),
                         motion: motion,
                         frame: frame.metrics,
@@ -664,10 +663,19 @@ extension CameraService: AVCaptureVideoDataOutputSampleBufferDelegate {
             edgeEnergy: edges / Double(samples),
             timestamp: CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
         )
-        if next.timestamp - lastBufferedFrameTime >= 1.0 / 15.0 {
-            frameBuffer.append(BufferedFrame(pixelBuffer: buffer, metrics: next))
-            lastBufferedFrameTime = next.timestamp
-            frameBuffer.removeAll { $0.metrics.timestamp < next.timestamp - 1.10 }
+        if automaticCaptureMode == .bufferedFrames {
+            if next.timestamp - lastBufferedFrameTime >= 1.0 / 8.0,
+               let imageData = jpegData(from: buffer) {
+                frameBuffer.append(BufferedFrame(imageData: imageData, metrics: next))
+                lastBufferedFrameTime = next.timestamp
+                frameBuffer.removeAll { $0.metrics.timestamp < next.timestamp - 1.10 }
+            }
+        } else if !frameBuffer.isEmpty {
+            // Never retain camera-owned pixel buffers in the normal photo path.
+            // Releasing experimental frames also reduces memory pressure while
+            // AVCapturePhotoOutput performs a high-resolution capture.
+            frameBuffer.removeAll(keepingCapacity: true)
+            lastBufferedFrameTime = 0
         }
         DispatchQueue.main.async { self.frameMetrics = next }
     }
