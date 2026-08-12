@@ -226,6 +226,22 @@ final class CameraService: NSObject, ObservableObject {
         candidates.removeAll()
     }
 
+#if DEBUG
+    func loadPreviewCandidates(_ candidates: [CaptureCandidate]) {
+        self.candidates = candidates
+    }
+
+    static var preview: CameraService {
+        let camera = CameraService()
+        camera.loadPreviewCandidates([
+            .preview(color: .systemOrange, exposure: .slow, isSelected: true),
+            .preview(color: .systemTeal, exposure: .slightlyFast),
+            .preview(color: .systemIndigo, exposure: .slower)
+        ])
+        return camera
+    }
+#endif
+
     func toggleSelection(for id: UUID) {
         guard let index = candidates.firstIndex(where: { $0.id == id }) else { return }
         for candidateIndex in candidates.indices {

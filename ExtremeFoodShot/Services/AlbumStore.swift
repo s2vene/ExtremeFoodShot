@@ -38,6 +38,20 @@ final class AlbumStore: ObservableObject {
         }
     }
 
+#if DEBUG
+    func loadPreviewSessions(_ sessions: [AlbumSession]) {
+        self.sessions = sessions
+    }
+
+    static var preview: AlbumStore {
+        let album = AlbumStore()
+        album.loadPreviewSessions([
+            AlbumSession(id: UUID(), capturedAt: Date(), photos: [])
+        ])
+        return album
+    }
+#endif
+
     func saveToPhotoLibrary(_ photo: AlbumPhoto) async throws {
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {

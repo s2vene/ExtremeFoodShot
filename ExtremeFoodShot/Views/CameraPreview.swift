@@ -21,3 +21,10 @@ final class PreviewView: UIView {
     var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
 }
 
+#if DEBUG
+#Preview("카메라 프리뷰") {
+    CameraPreview(session: AVCaptureSession())
+        .background(Color.black)
+        .ignoresSafeArea()
+}
+#endif

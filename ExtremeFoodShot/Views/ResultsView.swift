@@ -54,6 +54,17 @@ struct ResultsView: View {
     }
 }
 
+#if DEBUG
+#Preview("촬영 결과") {
+    ResultsView(camera: .preview)
+}
+#Preview("촬영 후보 카드") {
+    CandidateCard(candidate: .preview(isSelected: true))
+        .frame(width: 190)
+        .padding()
+}
+#endif
+
 private struct CandidateCard: View {
     let candidate: CaptureCandidate
 

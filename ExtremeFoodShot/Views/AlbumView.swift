@@ -65,6 +65,12 @@ struct AlbumView: View {
     }
 }
 
+#if DEBUG
+#Preview("촬영 앨범") {
+    AlbumView(album: .preview)
+}
+#endif
+
 private struct AlbumSessionView: View {
     let session: AlbumSession
     @ObservedObject var album: AlbumStore
@@ -121,3 +127,14 @@ private struct AlbumSessionView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("앨범 상세") {
+    NavigationStack {
+        AlbumSessionView(
+            session: AlbumSession(id: UUID(), capturedAt: Date(), photos: []),
+            album: AlbumStore()
+        )
+    }
+}
+#endif

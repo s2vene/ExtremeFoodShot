@@ -93,3 +93,10 @@ struct TuningView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("촬영 설정") {
+    let model = ExperimentViewModel()
+    TuningView(model: model, motion: model.motion, camera: model.camera)
+}
+#endif

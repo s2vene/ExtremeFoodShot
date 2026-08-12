@@ -1,9 +1,16 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var model = ExperimentViewModel()
+    @StateObject private var model: ExperimentViewModel
+    private let startsCaptureServices: Bool
     @State private var showSettings = false
     @State private var showAlbum = false
+
+    @MainActor
+    init(startsCaptureServices: Bool = true) {
+        _model = StateObject(wrappedValue: ExperimentViewModel())
+        self.startsCaptureServices = startsCaptureServices
+    }
 
     var body: some View {
         ZStack {
@@ -26,8 +33,12 @@ struct ContentView: View {
             .padding()
         }
         .foregroundStyle(.white)
-        .onAppear { model.start() }
-        .onDisappear { model.stop() }
+        .onAppear {
+            if startsCaptureServices { model.start() }
+        }
+        .onDisappear {
+            if startsCaptureServices { model.stop() }
+        }
         .sheet(isPresented: $model.showResults) {
             ResultsView(camera: model.camera)
         }
@@ -163,3 +174,9 @@ struct ContentView: View {
     }
 
 }
+
+#if DEBUG
+#Preview("메인 촬영 화면") {
+    ContentView(startsCaptureServices: false)
+}
+#endif
