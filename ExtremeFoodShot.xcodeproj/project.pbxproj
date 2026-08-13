@@ -217,6 +217,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = KF28DDXC26;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = FOCHAK;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSCameraUsageDescription = "역동적인 음식 사진을 촬영하기 위해 카메라를 사용합니다.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "촬영 순간을 판단하기 위해 기기의 움직임을 분석합니다.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "선택한 촬영 결과를 사진 앱에 저장합니다.";
@@ -246,6 +248,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = KF28DDXC26;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = FOCHAK;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSCameraUsageDescription = "역동적인 음식 사진을 촬영하기 위해 카메라를 사용합니다.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "촬영 순간을 판단하기 위해 기기의 움직임을 분석합니다.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "선택한 촬영 결과를 사진 앱에 저장합니다.";
