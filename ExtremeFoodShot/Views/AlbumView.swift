@@ -2,45 +2,38 @@ import SwiftUI
 
 struct AlbumView: View {
     @ObservedObject var album: AlbumStore
-    @Environment(\.dismiss) private var dismiss
 
     private let columns = [GridItem(.adaptive(minimum: 160), spacing: 14)]
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if album.sessions.isEmpty {
-                    ContentUnavailableView(
-                        "아직 촬영 기록이 없어요",
-                        systemImage: "photo.stack",
-                        description: Text("자동 촬영을 완료하면 후보 사진이 여기에 보관됩니다.")
-                    )
-                } else {
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: 14) {
-                            ForEach(album.sessions) { session in
-                                NavigationLink(value: session.id) {
-                                    sessionCard(session)
-                                }
-                                .buttonStyle(.plain)
+        Group {
+            if album.sessions.isEmpty {
+                ContentUnavailableView(
+                    "아직 촬영 기록이 없어요",
+                    systemImage: "photo.stack",
+                    description: Text("자동 촬영을 완료하면 후보 사진이 여기에 보관됩니다.")
+                )
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 14) {
+                        ForEach(album.sessions) { session in
+                            NavigationLink(value: session.id) {
+                                sessionCard(session)
                             }
-                        }
-                        .padding()
-                    }
-                    .navigationDestination(for: UUID.self) { id in
-                        if let session = album.sessions.first(where: { $0.id == id }) {
-                            AlbumSessionView(session: session, album: album)
+                            .buttonStyle(.plain)
                         }
                     }
-                }
-            }
-            .navigationTitle("촬영 앨범")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("완료") { dismiss() }
+                    .padding()
                 }
             }
         }
+        .navigationDestination(for: UUID.self) { id in
+            if let session = album.sessions.first(where: { $0.id == id }) {
+                AlbumSessionView(session: session, album: album)
+            }
+        }
+        .navigationTitle("촬영 앨범")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func sessionCard(_ session: AlbumSession) -> some View {

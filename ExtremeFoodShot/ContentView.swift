@@ -1,51 +1,66 @@
 import SwiftUI
 
 struct ContentView: View {
+    enum HeaderPreviewState {
+        case live
+        case cameraAuthorizationDenied
+        case motionUnavailable
+        case cameraAuthorizationDeniedAndMotionUnavailable
+    }
+
     @StateObject private var model: ExperimentViewModel
     private let startsCaptureServices: Bool
+    private let headerPreviewState: HeaderPreviewState
     @State private var showSettings = false
     @State private var showAlbum = false
     
     @MainActor
-    init(startsCaptureServices: Bool = true) {
+    init(
+        startsCaptureServices: Bool = true,
+        headerPreviewState: HeaderPreviewState = .live
+    ) {
         _model = StateObject(wrappedValue: ExperimentViewModel())
         self.startsCaptureServices = startsCaptureServices
+        self.headerPreviewState = headerPreviewState
     }
     
     var body: some View {
-        ZStack {
-            CameraPreview(session: model.camera.session)
+        NavigationStack {
+            ZStack {
+                CameraPreview(session: model.camera.session)
+                    .ignoresSafeArea()
+
+                LinearGradient(
+                    colors: [Color.fsNavy.opacity(0.7), .clear, Color.fsNavy.opacity(0.7)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
                 .ignoresSafeArea()
-            
-            LinearGradient(
-                colors: [.black.opacity(0.55), .clear, .black.opacity(0.78)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            
-            VStack(spacing: 14) {
-                header
-                Spacer()
-                controls
+
+                VStack(spacing: 14) {
+                    header
+                    Spacer()
+                    controls
+                }
+                .padding()
             }
-            .padding()
+            .foregroundStyle(.white)
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(isPresented: $model.showResults) {
+                ResultsView(camera: model.camera)
+            }
+            .navigationDestination(isPresented: $showAlbum) {
+                AlbumView(album: model.album)
+            }
         }
-        .foregroundStyle(.white)
         .onAppear {
             if startsCaptureServices { model.start() }
         }
         .onDisappear {
             if startsCaptureServices { model.stop() }
         }
-        .sheet(isPresented: $model.showResults) {
-            ResultsView(camera: model.camera)
-        }
         .sheet(isPresented: $showSettings) {
             TuningView(model: model, motion: model.motion, camera: model.camera)
-        }
-        .sheet(isPresented: $showAlbum) {
-            AlbumView(album: model.album)
         }
         .alert("카메라 오류", isPresented: Binding(
             get: { model.camera.errorMessage != nil },
@@ -66,7 +81,7 @@ struct ContentView: View {
     }
     
     private var header: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 20) {
             HStack {
                 
                 Image("logo")
@@ -78,7 +93,9 @@ struct ContentView: View {
                     showAlbum = true
                 } label: {
                     Image(systemName: "photo.stack.fill")
+                        .font(.body)
                         .foregroundStyle(Color.fsWhite)
+                        .padding(.vertical, 5)
                     
                 }
                 .buttonStyle(.glass)
@@ -88,21 +105,48 @@ struct ContentView: View {
                     showSettings = true
                 } label: {
                     Image(systemName: "gearshape")
+                        .font(.body)
                         .foregroundStyle(Color.fsWhite)
+                        .padding(.vertical, 6)
                 }
                 .buttonStyle(.glass)
                 .disabled(model.isExperimentRunning)
             }
             
-            
-            if model.camera.authorizationDenied {
-                Label("설정에서 카메라 권한을 허용해 주세요.", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.yellow)
+            VStack(spacing:10){
+                if showsCameraAuthorizationDenied {
+                    Label("설정에서 카메라 권한을 허용해 주세요.", systemImage: "exclamationmark.triangle.fill")
+                        .font(.fsTitle2)
+                        .foregroundStyle(Color.fsLime)
+                }
+                if showsMotionUnavailable {
+                    Label("Device Motion을 사용할 수 없습니다.", systemImage: "waveform.path.ecg")
+                        .foregroundStyle(Color.fsLime)
+                        .font(.fsTitle2)
+                }
             }
-            if !model.motion.isAvailable {
-                Label("이 기기에서 Device Motion을 사용할 수 없습니다.", systemImage: "waveform.path.ecg")
-                    .foregroundStyle(.yellow)
-            }
+        }
+    }
+
+    private var showsCameraAuthorizationDenied: Bool {
+        switch headerPreviewState {
+        case .live:
+            model.camera.authorizationDenied
+        case .cameraAuthorizationDenied, .cameraAuthorizationDeniedAndMotionUnavailable:
+            true
+        case .motionUnavailable:
+            false
+        }
+    }
+
+    private var showsMotionUnavailable: Bool {
+        switch headerPreviewState {
+        case .live:
+            !model.motion.isAvailable
+        case .motionUnavailable, .cameraAuthorizationDeniedAndMotionUnavailable:
+            true
+        case .cameraAuthorizationDenied:
+            false
         }
     }
     
@@ -113,7 +157,7 @@ struct ContentView: View {
             Text(model.isExperimentRunning
                  ? "\(model.camera.candidates.count) / \(model.maximumCandidates)"
                  : "0 / \(model.maximumCandidates)")
-            .font(.caption)
+            .font(.fsBody)
             .foregroundStyle(Color.fsWhite)
             
             
@@ -127,7 +171,7 @@ struct ContentView: View {
                         Image(systemName: "photo.on.rectangle.angled")
                 }
                         .font(.body)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 12)
                         .foregroundStyle(Color.fsWhite)
                         
                 }
@@ -147,7 +191,7 @@ struct ContentView: View {
                 }
                 .foregroundStyle(Color.fsNavy)
                 .frame(width: 85, height: 85)
-                .background(model.isExperimentRunning ? Color.red : Color.fsLime, in: Capsule())
+                .background(model.isExperimentRunning ? Color.fsRed : Color.fsLime, in: Capsule())
                 
                 Button {
                     ()
@@ -178,5 +222,26 @@ struct ContentView: View {
 #if DEBUG
 #Preview("메인 촬영 화면") {
     ContentView(startsCaptureServices: false)
+}
+
+#Preview("헤더 · 카메라 권한 거부") {
+    ContentView(
+        startsCaptureServices: false,
+        headerPreviewState: .cameraAuthorizationDenied
+    )
+}
+
+#Preview("헤더 · 모션 센서 미지원") {
+    ContentView(
+        startsCaptureServices: false,
+        headerPreviewState: .motionUnavailable
+    )
+}
+
+#Preview("헤더 · 권한 거부 + 모션 미지원") {
+    ContentView(
+        startsCaptureServices: false,
+        headerPreviewState: .cameraAuthorizationDeniedAndMotionUnavailable
+    )
 }
 #endif
