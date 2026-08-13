@@ -1,14 +1,26 @@
 # Xcode
 DerivedData/
 build/
+*.xccheckout
+*.xcscmblueprint
 *.xcuserstate
 xcuserdata/
+*.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+*.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+
+# Xcode playgrounds
+timeline.xctimeline
+playground.xcworkspace
 
 # Swift Package Manager
 .build/
 .swiftpm/
 Package.resolved
 
+# CocoaPods / Carthage build products
+Pods/
+Carthage/Build/
+
 # macOS
 .DS_Store
-
