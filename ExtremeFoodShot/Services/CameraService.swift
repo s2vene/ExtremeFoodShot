@@ -20,14 +20,14 @@ final class CameraService: NSObject, ObservableObject {
     @Published private(set) var supportsRAW = false
     @Published private(set) var supportsProRAW = false
     @Published var selectedLens: CameraLens = .ultraWide
-    @Published var automaticCaptureMode: AutomaticCaptureMode = .photo
-    @Published var exposurePreset: ExposurePreset = .automatic
-    @Published var focusPreset: FocusPreset = .continuous
-    @Published var whiteBalancePreset: WhiteBalancePreset = .automatic
-    @Published var captureQuality: CaptureQualityPreset = .speed
-    @Published var torchLevel = 1.0
-    @Published var zeroShutterLagEnabled = false
-    @Published var distortionCorrectionEnabled = false
+    @Published private(set) var automaticCaptureMode: AutomaticCaptureMode = .photo
+    @Published private(set) var exposurePreset: ExposurePreset = .slow
+    @Published private(set) var focusPreset: FocusPreset = .continuous
+    @Published private(set) var whiteBalancePreset: WhiteBalancePreset = .automatic
+    @Published private(set) var captureQuality: CaptureQualityPreset = .speed
+    @Published private(set) var torchLevel = 1.0
+    @Published private(set) var zeroShutterLagEnabled = false
+    @Published private(set) var distortionCorrectionEnabled = false
     @Published var preTriggerDuration = 0.20
     @Published var postTriggerDuration = 0.30
     @Published var bufferedCandidateCount = 3
@@ -225,6 +225,22 @@ final class CameraService: NSObject, ObservableObject {
     func clearCandidates() {
         candidates.removeAll()
     }
+
+#if DEBUG
+    func loadPreviewCandidates(_ candidates: [CaptureCandidate]) {
+        self.candidates = candidates
+    }
+
+    static var preview: CameraService {
+        let camera = CameraService()
+        camera.loadPreviewCandidates([
+            .preview(color: .systemOrange, exposure: .slow, isSelected: true),
+            .preview(color: .systemTeal, exposure: .slightlyFast),
+            .preview(color: .systemIndigo, exposure: .slower)
+        ])
+        return camera
+    }
+#endif
 
     func toggleSelection(for id: UUID) {
         guard let index = candidates.firstIndex(where: { $0.id == id }) else { return }
@@ -432,6 +448,13 @@ final class CameraService: NSObject, ObservableObject {
         }
     }
 
+    func setExposurePreset(_ preset: ExposurePreset) {
+        exposurePreset = preset
+        sessionQueue.async { [weak self] in
+            self?.applyDeviceControls()
+        }
+    }
+
     private var photoQualityPrioritization: AVCapturePhotoOutput.QualityPrioritization {
         switch captureQuality {
         case .speed: .speed
@@ -494,25 +517,21 @@ final class CameraService: NSObject, ObservableObject {
             try camera.lockForConfiguration()
             defer { camera.unlockForConfiguration() }
 
-            switch exposurePreset {
-            case .automatic:
-                if camera.isExposureModeSupported(.continuousAutoExposure) {
-                    camera.exposureMode = .continuousAutoExposure
-                }
-            case .freeze, .balanced, .motionBlur:
-                let seconds: Double
-                switch exposurePreset {
-                case .freeze: seconds = 1.0 / 250.0
-                case .balanced: seconds = 1.0 / 60.0
-                case .motionBlur: seconds = 1.0 / 15.0
-                case .automatic: seconds = 1.0 / 60.0
-                }
+            if let seconds = exposurePreset.duration {
                 let requested = CMTime(seconds: seconds, preferredTimescale: 1_000_000_000)
                 let notBelowMinimum = CMTimeCompare(requested, camera.activeFormat.minExposureDuration) < 0
                     ? camera.activeFormat.minExposureDuration : requested
                 let duration = CMTimeCompare(notBelowMinimum, camera.activeFormat.maxExposureDuration) > 0
                     ? camera.activeFormat.maxExposureDuration : notBelowMinimum
-                camera.setExposureModeCustom(duration: duration, iso: camera.iso, completionHandler: nil)
+                camera.setExposureModeCustom(
+                    duration: duration,
+                    iso: AVCaptureDevice.currentISO,
+                    completionHandler: nil
+                )
+            } else {
+                if camera.isExposureModeSupported(.continuousAutoExposure) {
+                    camera.exposureMode = .continuousAutoExposure
+                }
             }
 
             switch focusPreset {

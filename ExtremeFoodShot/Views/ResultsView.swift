@@ -54,6 +54,17 @@ struct ResultsView: View {
     }
 }
 
+#if DEBUG
+#Preview("촬영 결과") {
+    ResultsView(camera: .preview)
+}
+#Preview("촬영 후보 카드") {
+    CandidateCard(candidate: .preview(isSelected: true))
+        .frame(width: 190)
+        .padding()
+}
+#endif
+
 private struct CandidateCard: View {
     let candidate: CaptureCandidate
 
@@ -74,13 +85,17 @@ private struct CandidateCard: View {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                 }
             }
-            Text("\(candidate.motion.phase.rawValue) · \(candidate.lightingMode.rawValue)")
-            Text("\(candidate.testSettings.lens.rawValue) · \(candidate.testSettings.exposure.rawValue)")
-            Text("\(candidate.testSettings.focus.rawValue) · \(candidate.testSettings.quality.rawValue)")
-            Text(String(format: "축 %.2fg · 회전 %.2f rad/s", candidate.motion.axialAcceleration, candidate.motion.rotationMagnitude))
-            if let exposure = candidate.exposureDuration, let iso = candidate.iso {
-                Text(String(format: "노출 1/%.0f초 · ISO %.0f", 1 / exposure, iso))
+            Text(candidate.isSelected ? "선택한 사진" : "탭해서 선택")
+                .foregroundStyle(.secondary)
+            HStack(spacing: 5) {
+                Image(systemName: "timer")
+                Text("설정 \(candidate.testSettings.exposure.shortLabel)")
+                if let exposure = candidate.exposureDuration {
+                    Text("· 실제 \(formattedShutterSpeed(exposure))")
+                }
             }
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
         }
         .font(.caption)
         .padding(10)
@@ -90,5 +105,11 @@ private struct CandidateCard: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(candidate.isSelected ? Color.green : Color.clear, lineWidth: 2)
         }
+    }
+
+    private func formattedShutterSpeed(_ seconds: Double) -> String {
+        guard seconds > 0 else { return "-" }
+        if seconds >= 1 { return String(format: "%.1f초", seconds) }
+        return "1/\(Int((1 / seconds).rounded()))초"
     }
 }

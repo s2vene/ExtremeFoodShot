@@ -14,8 +14,8 @@ final class MotionAnalyzer: ObservableObject {
     @Published private(set) var axialHistory = Array(repeating: 0.0, count: 80)
     @Published private(set) var isAvailable = true
 
-    @Published var triggerThreshold = 0.40
-    @Published var rotationLimit = 3.4
+    @Published private(set) var triggerThreshold = 0.40
+    @Published private(set) var rotationLimit = 3.4
     var onTrigger: ((MotionSnapshot) -> Void)?
 
     private let manager = CMMotionManager()

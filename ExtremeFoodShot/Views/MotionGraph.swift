@@ -37,3 +37,13 @@ struct MotionGraph: View {
     }
 }
 
+#if DEBUG
+#Preview("모션 그래프") {
+    MotionGraph(
+        samples: (0..<80).map { sin(Double($0) * 0.22) * 0.7 },
+        threshold: 0.4
+    )
+    .padding()
+    .background(Color.gray)
+}
+#endif
