@@ -31,24 +31,15 @@ struct TuningView: View {
                 }
 
                 Section {
-                    Picker("셔터 스피드", selection: exposureBinding) {
-                        ForEach(ExposurePreset.allCases) { preset in
-                            Text(preset.rawValue).tag(preset)
-                        }
-                    }
-                    .pickerStyle(.navigationLink)
-
-                    HStack {
-                        Text("현재 설정")
-                        Spacer()
-                        Text(camera.exposurePreset.shortLabel + (camera.exposurePreset == .automatic ? "" : "초"))
-                            .fontWeight(.semibold)
-                            .monospacedDigit()
-                    }
+                    settingRow(
+                        "셔터 스피드",
+                        value: "1/60초 기준 자동",
+                        icon: "timer"
+                    )
                 } header: {
-                    Text("셔터 스피드 테스트")
+                    Text("자동 노출")
                 } footer: {
-                    Text("빠른 셔터는 움직임을 선명하게 멈추고, 느린 셔터는 움직임의 궤적과 블러를 더 많이 남깁니다. 같은 조명과 움직임에서 한 단계씩 바꿔 비교해보세요.")
+                    Text("밝은 환경에서는 셔터를 더 빠르게 조절하고, 어두운 환경에서는 1/60초를 유지하며 ISO를 우선 보정합니다.")
                 }
 
                 Section {
@@ -72,13 +63,6 @@ struct TuningView: View {
                 }
             }
         }
-    }
-
-    private var exposureBinding: Binding<ExposurePreset> {
-        Binding(
-            get: { camera.exposurePreset },
-            set: { camera.setExposurePreset($0) }
-        )
     }
 
     private func settingRow(_ title: String, value: String, icon: String) -> some View {

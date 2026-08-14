@@ -21,7 +21,7 @@ final class CameraService: NSObject, ObservableObject {
     @Published private(set) var supportsProRAW = false
     @Published var selectedLens: CameraLens = .ultraWide
     @Published private(set) var automaticCaptureMode: AutomaticCaptureMode = .photo
-    @Published private(set) var exposurePreset: ExposurePreset = .slow
+    @Published private(set) var exposurePreset: ExposurePreset = .automatic
     @Published private(set) var focusPreset: FocusPreset = .continuous
     @Published private(set) var whiteBalancePreset: WhiteBalancePreset = .automatic
     @Published private(set) var captureQuality: CaptureQualityPreset = .speed
@@ -448,13 +448,6 @@ final class CameraService: NSObject, ObservableObject {
         }
     }
 
-    func setExposurePreset(_ preset: ExposurePreset) {
-        exposurePreset = preset
-        sessionQueue.async { [weak self] in
-            self?.applyDeviceControls()
-        }
-    }
-
     private var photoQualityPrioritization: AVCapturePhotoOutput.QualityPrioritization {
         switch captureQuality {
         case .speed: .speed
@@ -517,21 +510,17 @@ final class CameraService: NSObject, ObservableObject {
             try camera.lockForConfiguration()
             defer { camera.unlockForConfiguration() }
 
-            if let seconds = exposurePreset.duration {
-                let requested = CMTime(seconds: seconds, preferredTimescale: 1_000_000_000)
-                let notBelowMinimum = CMTimeCompare(requested, camera.activeFormat.minExposureDuration) < 0
-                    ? camera.activeFormat.minExposureDuration : requested
-                let duration = CMTimeCompare(notBelowMinimum, camera.activeFormat.maxExposureDuration) > 0
+            if camera.isExposureModeSupported(.continuousAutoExposure) {
+                camera.exposureMode = .continuousAutoExposure
+
+                // Let auto exposure choose faster shutter speeds in bright scenes,
+                // while preventing low light from dropping below the 1/60 baseline.
+                let baseline = CMTime(seconds: 1.0 / 60.0, preferredTimescale: 1_000_000_000)
+                let notBelowMinimum = CMTimeCompare(baseline, camera.activeFormat.minExposureDuration) < 0
+                    ? camera.activeFormat.minExposureDuration : baseline
+                camera.activeMaxExposureDuration =
+                    CMTimeCompare(notBelowMinimum, camera.activeFormat.maxExposureDuration) > 0
                     ? camera.activeFormat.maxExposureDuration : notBelowMinimum
-                camera.setExposureModeCustom(
-                    duration: duration,
-                    iso: AVCaptureDevice.currentISO,
-                    completionHandler: nil
-                )
-            } else {
-                if camera.isExposureModeSupported(.continuousAutoExposure) {
-                    camera.exposureMode = .continuousAutoExposure
-                }
             }
 
             switch focusPreset {

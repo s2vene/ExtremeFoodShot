@@ -111,7 +111,7 @@ struct ContentView: View {
                     Image(systemName: "photo.stack.fill")
                         .font(.body)
                         .foregroundStyle(Color.fsWhite)
-                        .padding(.vertical, 5)
+                        .frame(width: 20, height: 30)
                     
                 }
                 .buttonStyle(.glass)
@@ -123,7 +123,7 @@ struct ContentView: View {
                     Image(systemName: "questionmark")
                         .font(.body)
                         .foregroundStyle(Color.fsWhite)
-                        .padding(.vertical, 5)
+                        .frame(width: 20, height: 30)
                 }
                 .buttonStyle(.glass)
                 .disabled(model.isExperimentRunning)
@@ -134,7 +134,7 @@ struct ContentView: View {
                     Image(systemName: "gearshape")
                         .font(.body)
                         .foregroundStyle(Color.fsWhite)
-                        .padding(.vertical, 5)
+                        .frame(width: 20, height: 30)
                 }
                 .buttonStyle(.glass)
                 .disabled(model.isExperimentRunning)
@@ -204,9 +204,11 @@ struct ContentView: View {
                     HStack(spacing:-2) {
                         Image(systemName: "chevron.compact.left")
                         Image(systemName: "photo.on.rectangle.angled")
+
+
                 }
+                    .padding(.vertical, 12)
                         .font(.body)
-                        .padding(.vertical, 11)
                         .foregroundStyle(Color.fsWhite)
                         
                 }

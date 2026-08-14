@@ -17,7 +17,7 @@ enum CameraLens: String, CaseIterable, Identifiable {
 }
 
 enum ExposurePreset: String, CaseIterable, Identifiable {
-    case automatic = "자동"
+    case automatic = "자동 · 최대 1/60초"
     case veryFast = "1/1000초"
     case fast = "1/500초"
     case freeze = "빠르게 · 1/250초"
@@ -50,7 +50,7 @@ enum ExposurePreset: String, CaseIterable, Identifiable {
 
     var shortLabel: String {
         switch self {
-        case .automatic: "자동"
+        case .automatic: "자동(최대 1/60)"
         case .veryFast: "1/1000"
         case .fast: "1/500"
         case .freeze: "1/250"
