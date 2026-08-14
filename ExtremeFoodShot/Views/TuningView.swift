@@ -33,13 +33,13 @@ struct TuningView: View {
                 Section {
                     settingRow(
                         "셔터 스피드",
-                        value: "1/60초 기준 자동",
+                        value: "1/50초 고정",
                         icon: "timer"
                     )
                 } header: {
-                    Text("자동 노출")
+                    Text("노출")
                 } footer: {
-                    Text("밝은 환경에서는 셔터를 더 빠르게 조절하고, 어두운 환경에서는 1/60초를 유지하며 ISO를 우선 보정합니다.")
+                    Text("주변 밝기와 관계없이 셔터스피드를 1/50초로 고정합니다.")
                 }
 
                 Section {
