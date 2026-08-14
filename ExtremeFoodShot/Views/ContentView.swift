@@ -11,8 +11,11 @@ struct ContentView: View {
     @StateObject private var model: ExperimentViewModel
     private let startsCaptureServices: Bool
     private let headerPreviewState: HeaderPreviewState
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var showSettings = false
+    @State private var showOnboarding = false
     @State private var showAlbum = false
+    @State private var startsServicesAfterOnboarding = false
     
     @MainActor
     init(
@@ -54,13 +57,26 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            if startsCaptureServices { model.start() }
+            if presentOnboardingIfNeeded() {
+                startsServicesAfterOnboarding = startsCaptureServices
+            } else if startsCaptureServices {
+                model.start()
+            }
         }
         .onDisappear {
             if startsCaptureServices { model.stop() }
         }
         .sheet(isPresented: $showSettings) {
             TuningView(model: model, motion: model.motion, camera: model.camera)
+        }
+        .sheet(isPresented: $showOnboarding, onDismiss: {
+            guard startsServicesAfterOnboarding else { return }
+            startsServicesAfterOnboarding = false
+            model.start()
+        }) {
+            OnboardingView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .alert("카메라 오류", isPresented: Binding(
             get: { model.camera.errorMessage != nil },
@@ -97,6 +113,17 @@ struct ContentView: View {
                         .foregroundStyle(Color.fsWhite)
                         .padding(.vertical, 5)
                     
+                }
+                .buttonStyle(.glass)
+                .disabled(model.isExperimentRunning)
+
+                Button {
+                    showOnboarding = true
+                } label: {
+                    Image(systemName: "questionmark")
+                        .font(.body)
+                        .foregroundStyle(Color.fsWhite)
+                        .padding(.vertical, 5)
                 }
                 .buttonStyle(.glass)
                 .disabled(model.isExperimentRunning)
@@ -148,6 +175,14 @@ struct ContentView: View {
         case .cameraAuthorizationDenied:
             false
         }
+    }
+
+    @discardableResult
+    private func presentOnboardingIfNeeded() -> Bool {
+        guard !hasSeenOnboarding else { return false }
+        hasSeenOnboarding = true
+        showOnboarding = true
+        return true
     }
     
     
