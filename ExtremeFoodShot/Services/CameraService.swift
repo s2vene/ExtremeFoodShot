@@ -244,21 +244,23 @@ final class CameraService: NSObject, ObservableObject {
 
     func toggleSelection(for id: UUID) {
         guard let index = candidates.firstIndex(where: { $0.id == id }) else { return }
-        for candidateIndex in candidates.indices {
-            candidates[candidateIndex].isSelected = candidateIndex == index
-        }
+        candidates[index].isSelected.toggle()
     }
 
-    func saveSelected() async throws {
-        guard let candidate = candidates.first(where: \.isSelected) else { return }
+    func saveSelected() async throws -> Int {
+        let selectedCandidates = candidates.filter(\.isSelected)
+        guard !selectedCandidates.isEmpty else { return 0 }
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {
             throw CameraError.photoLibraryDenied
         }
         try await PHPhotoLibrary.shared().performChanges {
-            let request = PHAssetCreationRequest.forAsset()
-            request.addResource(with: .photo, data: candidate.imageData, options: nil)
+            for candidate in selectedCandidates {
+                let request = PHAssetCreationRequest.forAsset()
+                request.addResource(with: .photo, data: candidate.imageData, options: nil)
+            }
         }
+        return selectedCandidates.count
     }
 
     private func configureAndStart() {

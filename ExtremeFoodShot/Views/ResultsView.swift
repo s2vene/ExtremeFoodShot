@@ -4,6 +4,7 @@ import SwiftUI
 struct ResultsView: View {
     @ObservedObject var camera: CameraService
     @State private var saveMessage: String?
+    @State private var previewCandidate: CaptureCandidate?
 
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
 
@@ -14,8 +15,11 @@ struct ResultsView: View {
             } else {
                 LazyVGrid(columns: columns, spacing: 12) {
                     ForEach(camera.candidates) { candidate in
-                        CandidateCard(candidate: candidate)
-                            .onTapGesture { camera.toggleSelection(for: candidate.id) }
+                        CandidateCard(
+                            candidate: candidate,
+                            onSelect: { camera.toggleSelection(for: candidate.id) },
+                            onPreview: { previewCandidate = candidate }
+                        )
                     }
                 }
                 .padding()
@@ -25,11 +29,11 @@ struct ResultsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("선택 사진 저장") {
+                Button("선택 사진 저장(\(selectedCount))") {
                     Task {
                         do {
-                            try await camera.saveSelected()
-                            saveMessage = "사진 앱에 저장했습니다."
+                            let savedCount = try await camera.saveSelected()
+                            saveMessage = "사진 \(savedCount)장을 사진 앱에 저장했습니다."
                         } catch {
                             saveMessage = error.localizedDescription
                         }
@@ -46,6 +50,15 @@ struct ResultsView: View {
         } message: {
             Text(saveMessage ?? "")
         }
+        .fullScreenCover(item: $previewCandidate) { candidate in
+            if let image = candidate.image {
+                FullScreenPhotoView(image: image)
+            }
+        }
+    }
+
+    private var selectedCount: Int {
+        camera.candidates.filter(\.isSelected).count
     }
 }
 
@@ -62,35 +75,54 @@ struct ResultsView: View {
 
 private struct CandidateCard: View {
     let candidate: CaptureCandidate
+    var onSelect: () -> Void = {}
+    var onPreview: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let image = candidate.image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .aspectRatio(9.0 / 16.0, contentMode: .fill)
-                    .clipped()
-            }
-            HStack {
-                Text("추천 \(Int(candidate.recommendationScore))")
-                    .font(.headline)
-                Spacer()
-                if candidate.isSelected {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                ZStack(alignment: .topTrailing) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .aspectRatio(9.0 / 16.0, contentMode: .fill)
+                        .clipped()
+                        .contentShape(Rectangle())
+                        .onTapGesture(perform: onPreview)
+
+                    Button(action: onPreview) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(.black.opacity(0.55), in: Circle())
+                    }
+                    .padding(8)
                 }
             }
-            Text(candidate.isSelected ? "선택한 사진" : "탭해서 선택")
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("추천 \(Int(candidate.recommendationScore))")
+                        .font(.headline)
+                    Spacer()
+                    if candidate.isSelected {
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    }
+                }
+                Text(candidate.isSelected ? "선택한 사진" : "탭해서 선택")
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 5) {
+                    Image(systemName: "timer")
+                    Text("설정 \(candidate.testSettings.exposure.shortLabel)")
+                    if let exposure = candidate.exposureDuration {
+                        Text("· 실제 \(formattedShutterSpeed(exposure))")
+                    }
+                }
                 .foregroundStyle(.secondary)
-            HStack(spacing: 5) {
-                Image(systemName: "timer")
-                Text("설정 \(candidate.testSettings.exposure.shortLabel)")
-                if let exposure = candidate.exposureDuration {
-                    Text("· 실제 \(formattedShutterSpeed(exposure))")
-                }
+                .monospacedDigit()
             }
-            .foregroundStyle(.secondary)
-            .monospacedDigit()
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onSelect)
         }
         .font(.caption)
         .padding(10)

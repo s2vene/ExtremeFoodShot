@@ -23,7 +23,9 @@ struct AlbumView: View {
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 20) {
                             ForEach(album.sessions) { session in
-                                NavigationLink(value: session.id) {
+                                NavigationLink {
+                                    AlbumSessionView(session: session, album: album)
+                                } label: {
                                     sessionCard(session)
                                 }
                                 .buttonStyle(.plain)
@@ -31,11 +33,6 @@ struct AlbumView: View {
                         }
                         .padding()
                     }
-                }
-            }
-            .navigationDestination(for: UUID.self) { id in
-                if let session = album.sessions.first(where: { $0.id == id }) {
-                    AlbumSessionView(session: session, album: album)
                 }
             }
             .navigationTitle("촬영 앨범")
@@ -80,6 +77,7 @@ private struct AlbumSessionView: View {
     let session: AlbumSession
     @ObservedObject var album: AlbumStore
     @State private var selectedPhoto: AlbumPhoto?
+    @State private var previewPhoto: AlbumPhoto?
     @State private var saveMessage: String?
 
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 20)]
@@ -89,22 +87,38 @@ private struct AlbumSessionView: View {
             LazyVGrid(columns: columns, spacing: 20) {
                 ForEach(session.photos) { photo in
                     if let image = photo.image {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .aspectRatio(9.0 / 16.0, contentMode: .fill)
-                            .clipped()
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(selectedPhoto?.id == photo.id ? .orange : .clear, lineWidth: 3)
+                        ZStack(alignment: .topTrailing) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .aspectRatio(9.0 / 16.0, contentMode: .fill)
+                                .clipped()
+                                .contentShape(Rectangle())
+                                .onTapGesture { selectedPhoto = photo }
+
+                            Button {
+                                previewPhoto = photo
+                            } label: {
+                                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 36, height: 36)
+                                    .background(.black.opacity(0.55), in: Circle())
                             }
-                            .onTapGesture { selectedPhoto = photo }
+                            .padding(8)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(selectedPhoto?.id == photo.id ? .orange : .clear, lineWidth: 3)
+                        }
                     }
                 }
             }
             .padding()
         }
+        .background(Color.fsNavy.ignoresSafeArea())
+        .foregroundStyle(Color.fsWhite)
         .navigationTitle(session.capturedAt.formatted(date: .abbreviated, time: .omitted))
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
@@ -129,6 +143,11 @@ private struct AlbumSessionView: View {
             Button("확인", role: .cancel) { saveMessage = nil }
         } message: {
             Text(saveMessage ?? "")
+        }
+        .fullScreenCover(item: $previewPhoto) { photo in
+            if let image = photo.image {
+                FullScreenPhotoView(image: image)
+            }
         }
     }
 }
