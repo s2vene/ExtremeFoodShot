@@ -6,55 +6,67 @@ struct AlbumView: View {
     private let columns = [GridItem(.adaptive(minimum: 160), spacing: 14)]
 
     var body: some View {
-        Group {
-            if album.sessions.isEmpty {
-                ContentUnavailableView(
-                    "아직 촬영 기록이 없어요",
-                    systemImage: "photo.stack",
-                    description: Text("자동 촬영을 완료하면 후보 사진이 여기에 보관됩니다.")
-                )
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 14) {
-                        ForEach(album.sessions) { session in
-                            NavigationLink(value: session.id) {
-                                sessionCard(session)
+        ZStack{
+            Color.fsNavy
+                .ignoresSafeArea()
+            
+            Group {
+                if album.sessions.isEmpty {
+                    ContentUnavailableView(
+                        "아직 촬영 기록이 없어요",
+                        systemImage: "photo.stack",
+                        description: Text("자동 촬영을 완료하면 후보 사진이 여기에 보관됩니다.")
+                    )
+                    .font(.fsBody)
+                
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: columns, spacing: 20) {
+                            ForEach(album.sessions) { session in
+                                NavigationLink(value: session.id) {
+                                    sessionCard(session)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
+                        .padding()
                     }
-                    .padding()
                 }
             }
-        }
-        .navigationDestination(for: UUID.self) { id in
-            if let session = album.sessions.first(where: { $0.id == id }) {
-                AlbumSessionView(session: session, album: album)
+            .navigationDestination(for: UUID.self) { id in
+                if let session = album.sessions.first(where: { $0.id == id }) {
+                    AlbumSessionView(session: session, album: album)
+                }
             }
+            .navigationTitle("촬영 앨범")
+            .navigationBarTitleDisplayMode(.inline)
+            .foregroundStyle(Color.fsWhite)
         }
-        .navigationTitle("촬영 앨범")
-        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func sessionCard(_ session: AlbumSession) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        ZStack(alignment: .bottom) {
             Group {
                 if let image = session.coverImage {
                     Image(uiImage: image).resizable().scaledToFill()
                 } else {
-                    Color.secondary.opacity(0.15)
+                    Color.fsWhite.opacity(0.5)
                 }
             }
-            .frame(height: 210)
+            .frame(height: 173)
             .clipped()
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
 
-            Text(session.capturedAt.formatted(date: .abbreviated, time: .shortened))
-                .font(.subheadline.weight(.semibold))
-            Label("후보 \(session.photos.count)장", systemImage: "photo.stack.fill")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack{
+                Text(session.capturedAt.formatted(date: .abbreviated, time: .shortened))
+                    .font(.fsBody)
+                
+                Text("\(session.photos.count)")
+                    .font(.fsBody)
+            }
+            .padding(.bottom, 20)
         }
+        .foregroundStyle(Color.fsWhite)
     }
 }
 
@@ -70,11 +82,11 @@ private struct AlbumSessionView: View {
     @State private var selectedPhoto: AlbumPhoto?
     @State private var saveMessage: String?
 
-    private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
+    private let columns = [GridItem(.adaptive(minimum: 150), spacing: 20)]
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 12) {
+            LazyVGrid(columns: columns, spacing: 20) {
                 ForEach(session.photos) { photo in
                     if let image = photo.image {
                         Image(uiImage: image)
@@ -82,9 +94,9 @@ private struct AlbumSessionView: View {
                             .scaledToFill()
                             .aspectRatio(9.0 / 16.0, contentMode: .fill)
                             .clipped()
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
                             .overlay {
-                                RoundedRectangle(cornerRadius: 14)
+                                RoundedRectangle(cornerRadius: 20)
                                     .stroke(selectedPhoto?.id == photo.id ? .orange : .clear, lineWidth: 3)
                             }
                             .onTapGesture { selectedPhoto = photo }

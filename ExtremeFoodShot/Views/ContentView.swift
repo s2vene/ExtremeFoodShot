@@ -84,9 +84,9 @@ struct ContentView: View {
         VStack(spacing: 20) {
             HStack {
                 
-                Image("logo")
+                Image("logo-white")
                     .resizable()
-                    .frame(width:50, height: 50)
+                    .frame(width:40, height: 40)
                 
                 Spacer()
                 Button {
@@ -107,7 +107,7 @@ struct ContentView: View {
                     Image(systemName: "gearshape")
                         .font(.body)
                         .foregroundStyle(Color.fsWhite)
-                        .padding(.vertical, 6)
+                        .padding(.vertical, 5)
                 }
                 .buttonStyle(.glass)
                 .disabled(model.isExperimentRunning)
@@ -152,7 +152,7 @@ struct ContentView: View {
     
     
     private var controls: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 10) {
             
             Text(model.isExperimentRunning
                  ? "\(model.camera.candidates.count) / \(model.maximumCandidates)"
@@ -161,37 +161,40 @@ struct ContentView: View {
             .foregroundStyle(Color.fsWhite)
             
             
-            HStack(spacing: 20) {
+            HStack(spacing: 10) {
                 
                 Button {
                     model.showResults = true
                 } label: {
-                    HStack(spacing:-2){
+                    HStack(spacing:-2) {
                         Image(systemName: "chevron.compact.left")
                         Image(systemName: "photo.on.rectangle.angled")
                 }
                         .font(.body)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 11)
                         .foregroundStyle(Color.fsWhite)
                         
                 }
                 .buttonStyle(.glass)
                 .disabled(model.camera.candidates.isEmpty || model.isExperimentRunning)
                 
-                
-                Button {
-                    if model.isExperimentRunning { model.finishExperiment() }
-                    else { model.beginExperiment() }
-                } label: {
-                    Label("",
-                    systemImage: model.isExperimentRunning ? "stop.fill" : "camera.fill"
-                          )
-                    .labelStyle(.iconOnly)
-                    .font(.title2)
+                ZStack{
+                    Image(model.isExperimentRunning ? "logo-red" : "logo")
+                        .resizable()
+                        .frame(width: 120, height: 120)
+                    
+                    Button {
+                        if model.isExperimentRunning { model.finishExperiment() }
+                        else { model.beginExperiment() }
+                    } label: {
+                        Label("",
+                              systemImage: model.isExperimentRunning ? "stop.fill" : "camera.fill"
+                        )
+                        .labelStyle(.iconOnly)
+                        .font(.fsTitle1)
+                    }
+                    .foregroundStyle(Color.fsNavy)
                 }
-                .foregroundStyle(Color.fsNavy)
-                .frame(width: 85, height: 85)
-                .background(model.isExperimentRunning ? Color.fsRed : Color.fsLime, in: Capsule())
                 
                 Button {
                     ()
