@@ -13,11 +13,19 @@ struct OnboardingView: View {
                     .resizable()
                     .frame(width:200, height: 200)
 
-                Text("음식의 순간을 포착하라")
-                    .font(.fsTitle1)
-                    .foregroundStyle(Color.fsWhite)
+                HStack(spacing:0){
+                    Text("음식의 순간을 ")
+                        .font(.fsTitle1)
+                        .foregroundStyle(Color.fsWhite)
+                    Text("포착")
+                        .font(.fsTitle1)
+                        .foregroundStyle(Color.fsLime)
+                    Text("하라")
+                        .font(.fsTitle1)
+                        .foregroundStyle(Color.fsWhite)
+                }
 
-                Text("휴대폰을 안정적으로 잡고\n음식을 향해 휴대폰을 흔들어 보세요.")
+                Text("휴대폰을 안정적으로 잡고\n음식을 향해 흔들어 보세요.")
                     .font(.fsBody)
                     .foregroundStyle(Color.fsWhite)
                     .multilineTextAlignment(.center)
@@ -29,7 +37,7 @@ struct OnboardingView: View {
                         onStart()
                         dismiss()
                     } label: {
-                        Text("포착 시작하기!")
+                        Text("포착 시작하기")
                             .font(.fsTitle2)
                             .foregroundStyle(Color.fsNavy)
                             .frame(maxWidth: .infinity)

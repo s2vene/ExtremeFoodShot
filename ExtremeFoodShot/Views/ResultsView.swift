@@ -97,67 +97,46 @@ private struct CandidateCard: View {
     var onPreview: () -> Void = {}
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let image = candidate.image {
-                ZStack(alignment: .topTrailing) {
+        ZStack(alignment: .topTrailing) {
+            ZStack(alignment: .bottomTrailing) {
+                if let image = candidate.image {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
                         .aspectRatio(9.0 / 16.0, contentMode: .fill)
                         .clipped()
-                        .contentShape(Rectangle())
-                        .onTapGesture(perform: onPreview)
 
-                    Button(action: onPreview) {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(Color.fsLime)
-                            .frame(width: 36, height: 36)
-                            .background(.black.opacity(0.55), in: Circle())
-                    }
-                    .padding(8)
-                }
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("추천 \(Int(candidate.recommendationScore))")
-                        .font(.headline)
-                    Spacer()
                     if candidate.isSelected {
+                        Color.fsLime
+                            .opacity(0.4)
+                            .allowsHitTesting(false)
+
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(Color.fsLime)
+                            .font(.system(size: 25))
+                            .padding(20)
+                            .allowsHitTesting(false)
                     }
                 }
-                Text(candidate.isSelected ? "선택한 사진" : "탭해서 선택")
-                    .foregroundStyle(Color.fsWhite)
-                HStack(spacing: 5) {
-                    Image(systemName: "timer")
-                        .foregroundStyle(Color.fsLime)
-                    Text("설정 \(candidate.testSettings.exposure.shortLabel)")
-                    if let exposure = candidate.exposureDuration {
-                        Text("· 실제 \(formattedShutterSpeed(exposure))")
-                    }
-                }
-                .foregroundStyle(Color.fsWhite)
-                .monospacedDigit()
             }
             .contentShape(Rectangle())
             .onTapGesture(perform: onSelect)
+
+            Button(action: onPreview) {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Color.fsLime)
+                    .frame(width: 36, height: 36)
+                    .background(.black.opacity(0.55), in: Circle())
+            }
+            .padding(20)
         }
-        .font(.caption)
         .foregroundStyle(Color.fsWhite)
-        .padding(10)
         .background(candidate.isSelected ? Color.fsLime.opacity(0.18) : Color.fsWhite.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay {
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 20)
                 .stroke(candidate.isSelected ? Color.fsLime : Color.clear, lineWidth: 2)
         }
-    }
-
-    private func formattedShutterSpeed(_ seconds: Double) -> String {
-        guard seconds > 0 else { return "-" }
-        if seconds >= 1 { return String(format: "%.1f초", seconds) }
-        return "1/\(Int((1 / seconds).rounded()))초"
     }
 }
