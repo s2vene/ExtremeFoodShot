@@ -214,9 +214,10 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = KF28DDXC26;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Resource/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FOCHAK;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSCameraUsageDescription = "역동적인 음식 사진을 촬영하기 위해 카메라를 사용합니다.";
@@ -245,9 +246,10 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = KF28DDXC26;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Resource/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FOCHAK;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSCameraUsageDescription = "역동적인 음식 사진을 촬영하기 위해 카메라를 사용합니다.";

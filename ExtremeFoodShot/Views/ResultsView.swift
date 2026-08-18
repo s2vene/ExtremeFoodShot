@@ -11,7 +11,19 @@ struct ResultsView: View {
     var body: some View {
         ScrollView {
             if camera.candidates.isEmpty {
-                ContentUnavailableView("후보 없음", systemImage: "camera", description: Text("촬영을 다시 진행해 주세요."))
+                VStack(spacing: 12) {
+                    Image(systemName: "camera")
+                        .font(.largeTitle)
+                        .foregroundStyle(Color.fsLime)
+                    Text("후보 없음")
+                        .font(.fsTitle2)
+                        .foregroundStyle(Color.fsWhite)
+                    Text("촬영을 다시 진행해 주세요.")
+                        .font(.fsBody)
+                        .foregroundStyle(Color.fsWhite)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 80)
             } else {
                 LazyVGrid(columns: columns, spacing: 12) {
                     ForEach(camera.candidates) { candidate in
@@ -25,8 +37,13 @@ struct ResultsView: View {
                 .padding()
             }
         }
+        .background(Color.fsNavy.ignoresSafeArea())
+        .tint(Color.fsLime)
         .navigationTitle("촬영 후보 \(camera.candidates.count)장")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.fsNavy, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("선택 사진 저장(\(selectedCount))") {
@@ -40,6 +57,7 @@ struct ResultsView: View {
                     }
                 }
                 .disabled(!camera.candidates.contains(where: \.isSelected))
+                .foregroundStyle(Color.fsLime)
             }
         }
         .alert("저장 결과", isPresented: Binding(
@@ -93,7 +111,7 @@ private struct CandidateCard: View {
                     Button(action: onPreview) {
                         Image(systemName: "arrow.up.left.and.arrow.down.right")
                             .font(.body.weight(.semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.fsLime)
                             .frame(width: 36, height: 36)
                             .background(.black.opacity(0.55), in: Circle())
                     }
@@ -106,31 +124,34 @@ private struct CandidateCard: View {
                         .font(.headline)
                     Spacer()
                     if candidate.isSelected {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(Color.fsLime)
                     }
                 }
                 Text(candidate.isSelected ? "선택한 사진" : "탭해서 선택")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.fsWhite)
                 HStack(spacing: 5) {
                     Image(systemName: "timer")
+                        .foregroundStyle(Color.fsLime)
                     Text("설정 \(candidate.testSettings.exposure.shortLabel)")
                     if let exposure = candidate.exposureDuration {
                         Text("· 실제 \(formattedShutterSpeed(exposure))")
                     }
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.fsWhite)
                 .monospacedDigit()
             }
             .contentShape(Rectangle())
             .onTapGesture(perform: onSelect)
         }
         .font(.caption)
+        .foregroundStyle(Color.fsWhite)
         .padding(10)
-        .background(candidate.isSelected ? Color.green.opacity(0.15) : Color.secondary.opacity(0.1))
+        .background(candidate.isSelected ? Color.fsLime.opacity(0.18) : Color.fsWhite.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay {
             RoundedRectangle(cornerRadius: 14)
-                .stroke(candidate.isSelected ? Color.green : Color.clear, lineWidth: 2)
+                .stroke(candidate.isSelected ? Color.fsLime : Color.clear, lineWidth: 2)
         }
     }
 

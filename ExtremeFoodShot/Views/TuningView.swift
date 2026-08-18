@@ -22,6 +22,7 @@ struct TuningView: View {
                 } footer: {
                     Text("자동 촬영이 이 장수에 도달하면 촬영을 마치고 결과를 보여줍니다.")
                 }
+                .listRowBackground(Color.fsNavy)
 
                 Section("촬영 방식") {
                     settingRow("자동 촬영", value: "고화질 사진", icon: "camera.fill")
@@ -29,6 +30,7 @@ struct TuningView: View {
                     settingRow("조명", value: "토치 100%", icon: "flashlight.on.fill")
                     settingRow("초점 · 색상", value: "자동", icon: "wand.and.stars")
                 }
+                .listRowBackground(Color.fsNavy)
 
                 Section {
                     settingRow(
@@ -41,25 +43,35 @@ struct TuningView: View {
                 } footer: {
                     Text("주변 밝기와 관계없이 셔터스피드를 1/50초로 고정합니다.")
                 }
+                .listRowBackground(Color.fsNavy)
 
                 Section {
-                    Label(
+                    tipRow(
                         "휴대폰을 음식 위에서 위아래로 움직이면 방향이 바뀌는 순간 자동으로 촬영합니다.",
-                        systemImage: "arrow.up.and.down"
+                        icon: "arrow.up.and.down"
                     )
-                    Label(
+                    tipRow(
                         "카메라가 크게 회전하거나 흔들리면 촬영 순간에서 제외합니다.",
-                        systemImage: "gyroscope"
+                        icon: "gyroscope"
                     )
                 } header: {
                     Text("촬영 팁")
                 }
+                .listRowBackground(Color.fsNavy)
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.fsNavy)
+            .foregroundStyle(Color.fsWhite)
+            .tint(Color.fsLime)
             .navigationTitle("설정")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color.fsNavy, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("완료") { dismiss() }
+                        .foregroundStyle(Color.fsLime)
                 }
             }
         }
@@ -68,12 +80,22 @@ struct TuningView: View {
     private func settingRow(_ title: String, value: String, icon: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.fsLime)
                 .frame(width: 24)
             Text(title)
             Spacer()
             Text(value)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.fsWhite)
+        }
+    }
+
+    private func tipRow(_ text: String, icon: String) -> some View {
+        Label {
+            Text(text)
+                .foregroundStyle(Color.fsWhite)
+        } icon: {
+            Image(systemName: icon)
+                .foregroundStyle(Color.fsLime)
         }
     }
 }

@@ -14,6 +14,7 @@ struct ContentView: View {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var showSettings = false
     @State private var showOnboarding = false
+    @State private var isFirstLaunchOnboarding = false
     @State private var showAlbum = false
     @State private var startsServicesAfterOnboarding = false
     
@@ -74,9 +75,12 @@ struct ContentView: View {
             startsServicesAfterOnboarding = false
             model.start()
         }) {
-            OnboardingView()
+            OnboardingView(isFirstLaunch: isFirstLaunchOnboarding) {
+                hasSeenOnboarding = true
+            }
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+                .interactiveDismissDisabled(isFirstLaunchOnboarding)
         }
         .alert("카메라 오류", isPresented: Binding(
             get: { model.camera.errorMessage != nil },
@@ -118,6 +122,7 @@ struct ContentView: View {
                 .disabled(model.isExperimentRunning)
 
                 Button {
+                    isFirstLaunchOnboarding = false
                     showOnboarding = true
                 } label: {
                     Image(systemName: "questionmark")
@@ -180,7 +185,7 @@ struct ContentView: View {
     @discardableResult
     private func presentOnboardingIfNeeded() -> Bool {
         guard !hasSeenOnboarding else { return false }
-        hasSeenOnboarding = true
+        isFirstLaunchOnboarding = true
         showOnboarding = true
         return true
     }
