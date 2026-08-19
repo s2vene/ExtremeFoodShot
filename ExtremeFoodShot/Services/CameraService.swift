@@ -20,8 +20,9 @@ final class CameraService: NSObject, ObservableObject {
     @Published private(set) var supportsRAW = false
     @Published private(set) var supportsProRAW = false
     @Published var selectedLens: CameraLens = .ultraWide
+    @Published var captureAspectRatio: CaptureAspectRatio = .portrait16x9
     @Published private(set) var automaticCaptureMode: AutomaticCaptureMode = .photo
-    @Published private(set) var exposurePreset: ExposurePreset = .slow
+    @Published private(set) var exposurePreset: ExposurePreset = .nearBalanced
     @Published private(set) var focusPreset: FocusPreset = .continuous
     @Published private(set) var whiteBalancePreset: WhiteBalancePreset = .automatic
     @Published private(set) var captureQuality: CaptureQualityPreset = .speed
@@ -244,21 +245,23 @@ final class CameraService: NSObject, ObservableObject {
 
     func toggleSelection(for id: UUID) {
         guard let index = candidates.firstIndex(where: { $0.id == id }) else { return }
-        for candidateIndex in candidates.indices {
-            candidates[candidateIndex].isSelected = candidateIndex == index
-        }
+        candidates[index].isSelected.toggle()
     }
 
-    func saveSelected() async throws {
-        guard let candidate = candidates.first(where: \.isSelected) else { return }
+    func saveSelected() async throws -> Int {
+        let selectedCandidates = candidates.filter(\.isSelected)
+        guard !selectedCandidates.isEmpty else { return 0 }
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {
             throw CameraError.photoLibraryDenied
         }
         try await PHPhotoLibrary.shared().performChanges {
-            let request = PHAssetCreationRequest.forAsset()
-            request.addResource(with: .photo, data: candidate.imageData, options: nil)
+            for candidate in selectedCandidates {
+                let request = PHAssetCreationRequest.forAsset()
+                request.addResource(with: .photo, data: candidate.imageData, options: nil)
+            }
         }
+        return selectedCandidates.count
     }
 
     private func configureAndStart() {
@@ -389,7 +392,12 @@ final class CameraService: NSObject, ObservableObject {
         guard session.canAddInput(input) else { throw CameraError.configurationFailed }
         session.addInput(input)
         cameraInput = input
-        selectedLens = camera.deviceType == .builtInUltraWideCamera ? .ultraWide : .wide
+        let configuredLens: CameraLens = camera.deviceType == .builtInUltraWideCamera
+            ? .ultraWide
+            : .wide
+        DispatchQueue.main.async {
+            self.selectedLens = configuredLens
+        }
 
         guard session.canAddOutput(photoOutput) else { throw CameraError.configurationFailed }
         session.addOutput(photoOutput)
@@ -448,13 +456,6 @@ final class CameraService: NSObject, ObservableObject {
         }
     }
 
-    func setExposurePreset(_ preset: ExposurePreset) {
-        exposurePreset = preset
-        sessionQueue.async { [weak self] in
-            self?.applyDeviceControls()
-        }
-    }
-
     private var photoQualityPrioritization: AVCapturePhotoOutput.QualityPrioritization {
         switch captureQuality {
         case .speed: .speed
@@ -465,6 +466,7 @@ final class CameraService: NSObject, ObservableObject {
 
     private var testSettingsSnapshot: CameraTestSnapshot {
         CameraTestSnapshot(
+            aspectRatio: captureAspectRatio,
             lens: selectedLens,
             exposure: exposurePreset,
             focus: focusPreset,
@@ -517,8 +519,8 @@ final class CameraService: NSObject, ObservableObject {
             try camera.lockForConfiguration()
             defer { camera.unlockForConfiguration() }
 
-            if let seconds = exposurePreset.duration {
-                let requested = CMTime(seconds: seconds, preferredTimescale: 1_000_000_000)
+            if camera.isExposureModeSupported(.custom) {
+                let requested = CMTime(seconds: 1.0 / 50.0, preferredTimescale: 1_000_000_000)
                 let notBelowMinimum = CMTimeCompare(requested, camera.activeFormat.minExposureDuration) < 0
                     ? camera.activeFormat.minExposureDuration : requested
                 let duration = CMTimeCompare(notBelowMinimum, camera.activeFormat.maxExposureDuration) > 0
@@ -528,10 +530,6 @@ final class CameraService: NSObject, ObservableObject {
                     iso: AVCaptureDevice.currentISO,
                     completionHandler: nil
                 )
-            } else {
-                if camera.isExposureModeSupported(.continuousAutoExposure) {
-                    camera.exposureMode = .continuousAutoExposure
-                }
             }
 
             switch focusPreset {
@@ -597,20 +595,20 @@ final class CameraService: NSObject, ObservableObject {
 
     private func jpegData(from pixelBuffer: CVPixelBuffer) -> Data? {
         let image = CIImage(cvPixelBuffer: pixelBuffer).oriented(.right)
-        return jpegData16By9(from: image)
+        return jpegData(from: image, aspectRatio: captureAspectRatio)
     }
 
-    private func jpegData16By9(from data: Data) -> Data? {
+    private func jpegData(from data: Data, aspectRatio: CaptureAspectRatio) -> Data? {
         guard let image = CIImage(data: data, options: [.applyOrientationProperty: true]) else {
             return nil
         }
-        return jpegData16By9(from: image)
+        return jpegData(from: image, aspectRatio: aspectRatio)
     }
 
-    private func jpegData16By9(from image: CIImage) -> Data? {
+    private func jpegData(from image: CIImage, aspectRatio: CaptureAspectRatio) -> Data? {
         let extent = image.extent.integral
         guard extent.width > 0, extent.height > 0 else { return nil }
-        let targetRatio = 9.0 / 16.0
+        let targetRatio = aspectRatio.value
         let cropWidth: CGFloat
         let cropHeight: CGFloat
         if extent.width / extent.height > targetRatio {
@@ -620,9 +618,11 @@ final class CameraService: NSObject, ObservableObject {
             cropWidth = extent.width
             cropHeight = cropWidth / targetRatio
         }
+        let availableVerticalCrop = max(0, extent.height - cropHeight)
+        let verticalOffset = availableVerticalCrop * aspectRatio.verticalCropBias
         let cropRect = CGRect(
             x: extent.midX - cropWidth / 2,
-            y: extent.midY - cropHeight / 2,
+            y: extent.midY - cropHeight / 2 + verticalOffset,
             width: cropWidth,
             height: cropHeight
         ).integral
@@ -655,7 +655,10 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
         }
         guard let capture,
               let originalData = photo.fileDataRepresentation(),
-              let data = jpegData16By9(from: originalData) else {
+              let data = jpegData(
+                from: originalData,
+                aspectRatio: capture.testSettings.aspectRatio
+              ) else {
             DispatchQueue.main.async { self.isCapturing = false }
             return
         }

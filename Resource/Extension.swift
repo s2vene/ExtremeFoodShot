@@ -48,11 +48,11 @@ extension Font {
     // [Fontsize] : 사용할 폰트 크기를 지정합니다. 예) 20
     
     // Figma Text Styles
-    static let Title1 = Font.custom("Pretendard-SemiBold", size: 22)
-    static let Title2 = Font.custom("Pretendard-SemiBold", size: 18)
-    static let Body = Font.custom("Pretendard-Regular", size: 16)
-    static let Caption1 = Font.custom("Pretendard-Regular", size: 14)
-    static let Caption2 = Font.custom("Pretendard-SemiBold", size: 12)
+    static let fsTitle1 = Font.custom("Pretendard-SemiBold", size: 22)
+    static let fsTitle2 = Font.custom("Pretendard-SemiBold", size: 18)
+    static let fsBody = Font.custom("Pretendard-Regular", size: 16)
+    static let fsCaption1 = Font.custom("Pretendard-Regular", size: 14)
+    static let fsCaption2 = Font.custom("Pretendard-SemiBold", size: 12)
     
 }
 
@@ -61,4 +61,5 @@ extension Color {
     static let fsNavy = Color("fsnavy")
     static let fsLime = Color("fslime")
     static let fsWhite = Color("fswhite")
+    static let fsRed = Color("fsred")
 }

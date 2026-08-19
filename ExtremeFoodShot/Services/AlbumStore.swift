@@ -53,14 +53,22 @@ final class AlbumStore: ObservableObject {
 #endif
 
     func saveToPhotoLibrary(_ photo: AlbumPhoto) async throws {
+        _ = try await saveToPhotoLibrary([photo])
+    }
+
+    func saveToPhotoLibrary(_ photos: [AlbumPhoto]) async throws -> Int {
+        guard !photos.isEmpty else { return 0 }
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {
             throw CameraError.photoLibraryDenied
         }
         try await PHPhotoLibrary.shared().performChanges {
-            let request = PHAssetCreationRequest.forAsset()
-            request.addResource(with: .photo, fileURL: photo.fileURL, options: nil)
+            for photo in photos {
+                let request = PHAssetCreationRequest.forAsset()
+                request.addResource(with: .photo, fileURL: photo.fileURL, options: nil)
+            }
         }
+        return photos.count
     }
 
     private func loadSessions() {

@@ -17,7 +17,7 @@ enum CameraLens: String, CaseIterable, Identifiable {
 }
 
 enum ExposurePreset: String, CaseIterable, Identifiable {
-    case automatic = "자동"
+    case automatic = "자동 · 최대 1/50초"
     case veryFast = "1/1000초"
     case fast = "1/500초"
     case freeze = "빠르게 · 1/250초"
@@ -50,7 +50,7 @@ enum ExposurePreset: String, CaseIterable, Identifiable {
 
     var shortLabel: String {
         switch self {
-        case .automatic: "자동"
+        case .automatic: "자동(최대 1/50)"
         case .veryFast: "1/1000"
         case .fast: "1/500"
         case .freeze: "1/250"
@@ -92,6 +92,29 @@ enum AutomaticCaptureMode: String, CaseIterable, Identifiable {
     var id: Self { self }
 }
 
+enum CaptureAspectRatio: String, CaseIterable, Identifiable {
+    case portrait16x9 = "9:16"
+    case square = "1:1"
+    case portrait3x4 = "3:4"
+
+    var id: Self { self }
+
+    var value: CGFloat {
+        switch self {
+        case .portrait16x9: 9.0 / 16.0
+        case .square: 1.0
+        case .portrait3x4: 3.0 / 4.0
+        }
+    }
+
+    var verticalCropBias: CGFloat {
+        switch self {
+        case .portrait16x9: 0
+        case .square, .portrait3x4: 0.075
+        }
+    }
+}
+
 enum MotionPhase: String {
     case idle = "대기"
     case movingDown = "아래로 이동"
@@ -117,6 +140,7 @@ struct FrameMetrics {
 }
 
 struct CameraTestSnapshot {
+    let aspectRatio: CaptureAspectRatio
     let lens: CameraLens
     let exposure: ExposurePreset
     let focus: FocusPreset
@@ -184,6 +208,7 @@ extension CaptureCandidate {
             exposureDuration: exposure.duration,
             iso: 125,
             testSettings: CameraTestSnapshot(
+                aspectRatio: .portrait16x9,
                 lens: .ultraWide,
                 exposure: exposure,
                 focus: .continuous,
