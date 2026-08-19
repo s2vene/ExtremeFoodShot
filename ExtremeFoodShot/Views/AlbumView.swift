@@ -18,6 +18,7 @@ struct AlbumView: View {
                         description: Text("자동 촬영을 완료하면 후보 사진이 여기에 보관됩니다.")
                     )
                     .font(.fsBody)
+                    .tint(Color.fsLime)
                 
                 } else {
                     ScrollView {
@@ -39,6 +40,10 @@ struct AlbumView: View {
             .navigationBarTitleDisplayMode(.inline)
             .foregroundStyle(Color.fsWhite)
         }
+        .tint(Color.fsLime)
+        .toolbarBackground(Color.fsNavy, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
     }
 
     private func sessionCard(_ session: AlbumSession) -> some View {
@@ -58,8 +63,12 @@ struct AlbumView: View {
                 Text(session.capturedAt.formatted(date: .abbreviated, time: .shortened))
                     .font(.fsBody)
                 
-                Text("\(session.photos.count)")
-                    .font(.fsBody)
+                HStack(spacing: 4) {
+                    Image(systemName: "photo.stack.fill")
+                        .foregroundStyle(Color.fsLime)
+                    Text("\(session.photos.count)")
+                }
+                .font(.fsBody)
             }
             .padding(.bottom, 20)
         }
@@ -89,35 +98,51 @@ private struct AlbumSessionView: View {
                     if let image = photo.image {
                         let isSelected = selectedPhotoIDs.contains(photo.id)
                         ZStack(alignment: .topTrailing) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .aspectRatio(image.size.width / image.size.height, contentMode: .fill)
-                                .clipped()
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    if isSelected {
-                                        selectedPhotoIDs.remove(photo.id)
-                                    } else {
-                                        selectedPhotoIDs.insert(photo.id)
-                                    }
+                            ZStack(alignment: .bottomTrailing) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .aspectRatio(image.size.width / image.size.height, contentMode: .fill)
+                                    .clipped()
+
+                                if isSelected {
+                                    Color.fsLime
+                                        .opacity(0.4)
+                                        .allowsHitTesting(false)
+
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Color.fsLime)
+                                        .font(.system(size: 25))
+                                        .padding(20)
+                                        .allowsHitTesting(false)
                                 }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if isSelected {
+                                    selectedPhotoIDs.remove(photo.id)
+                                } else {
+                                    selectedPhotoIDs.insert(photo.id)
+                                }
+                            }
 
                             Button {
                                 previewPhoto = photo
                             } label: {
                                 Image(systemName: "arrow.up.left.and.arrow.down.right")
                                     .font(.body.weight(.semibold))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Color.fsLime)
                                     .frame(width: 36, height: 36)
                                     .background(.black.opacity(0.55), in: Circle())
                             }
-                            .padding(8)
+                            .padding(20)
                         }
+                        .foregroundStyle(Color.fsWhite)
+                        .background(isSelected ? Color.fsLime.opacity(0.18) : Color.fsWhite.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: 20))
                         .overlay {
                             RoundedRectangle(cornerRadius: 20)
-                                .stroke(isSelected ? .orange : .clear, lineWidth: 3)
+                                .stroke(isSelected ? Color.fsLime : Color.clear, lineWidth: 2)
                         }
                     }
                 }
@@ -126,7 +151,11 @@ private struct AlbumSessionView: View {
         }
         .background(Color.fsNavy.ignoresSafeArea())
         .foregroundStyle(Color.fsWhite)
+        .tint(Color.fsLime)
         .navigationTitle(session.capturedAt.formatted(date: .abbreviated, time: .omitted))
+        .toolbarBackground(Color.fsNavy, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("선택 사진 저장(\(selectedPhotoIDs.count))") {
@@ -141,6 +170,7 @@ private struct AlbumSessionView: View {
                     }
                 }
                 .disabled(selectedPhotoIDs.isEmpty)
+                .foregroundStyle(Color.fsLime)
             }
         }
         .alert("저장 결과", isPresented: Binding(

@@ -11,64 +11,42 @@ struct TuningView: View {
             Form {
                 Section {
                     Stepper(value: $model.maximumCandidates, in: 3...15) {
-                        LabeledContent("최대 후보 수") {
+                        LabeledContent("최대 촬영 수") {
                             Text("\(model.maximumCandidates)장")
-                                .fontWeight(.semibold)
+                                .font(.fsTitle2)
                                 .monospacedDigit()
                         }
+                        .font(.fsBody)
                     }
-                } header: {
-                    Text("촬영 설정")
-                } footer: {
-                    Text("자동 촬영이 이 장수에 도달하면 촬영을 마치고 결과를 보여줍니다.")
                 }
-                .listRowBackground(Color.fsNavy)
+                .padding(6)
+                .listRowBackground(Color.fsWhite.opacity(0.05))
 
-                Section("촬영 비율") {
+                Section {
                     Picker("촬영 비율", selection: $camera.captureAspectRatio) {
                         ForEach(CaptureAspectRatio.allCases) { ratio in
                             Text(ratio.rawValue).tag(ratio)
                         }
                     }
+                    .font(.fsBody)
                 }
-                .listRowBackground(Color.fsNavy)
+                .padding(6)
+                .listRowBackground(Color.fsWhite.opacity(0.05))
 
-                Section("촬영 방식") {
-                    settingRow("자동 촬영", value: "고화질 사진", icon: "camera.fill")
+
+                Section {
                     settingRow("렌즈", value: "0.5× 초광각", icon: "camera.aperture")
                     settingRow("조명", value: "토치 100%", icon: "flashlight.on.fill")
-                    settingRow("초점 · 색상", value: "자동", icon: "wand.and.stars")
+                    settingRow("초점", value: "자동", icon: "wand.and.stars")
+                    settingRow("셔터 스피드", value: "1/50초", icon: "timer")
                 }
-                .listRowBackground(Color.fsNavy)
+                .font(.fsBody)
+                .padding(6)
+                .listRowBackground(Color.fsWhite.opacity(0.05))
 
-                Section {
-                    settingRow(
-                        "셔터 스피드",
-                        value: "1/50초 고정",
-                        icon: "timer"
-                    )
-                } header: {
-                    Text("노출")
-                } footer: {
-                    Text("주변 밝기와 관계없이 셔터스피드를 1/50초로 고정합니다.")
-                }
-                .listRowBackground(Color.fsNavy)
-
-                Section {
-                    tipRow(
-                        "휴대폰을 음식 위에서 위아래로 움직이면 방향이 바뀌는 순간 자동으로 촬영합니다.",
-                        icon: "arrow.up.and.down"
-                    )
-                    tipRow(
-                        "카메라가 크게 회전하거나 흔들리면 촬영 순간에서 제외합니다.",
-                        icon: "gyroscope"
-                    )
-                } header: {
-                    Text("촬영 팁")
-                }
-                .listRowBackground(Color.fsNavy)
             }
             .scrollContentBackground(.hidden)
+            .listSectionSpacing(8)
             .background(Color.fsNavy)
             .foregroundStyle(Color.fsWhite)
             .tint(Color.fsLime)
@@ -83,6 +61,7 @@ struct TuningView: View {
                         .foregroundStyle(Color.fsLime)
                 }
             }
+
         }
     }
 
@@ -90,7 +69,7 @@ struct TuningView: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .foregroundStyle(Color.fsLime)
-                .frame(width: 24)
+                .frame(width: 20)
             Text(title)
             Spacer()
             Text(value)
@@ -98,15 +77,6 @@ struct TuningView: View {
         }
     }
 
-    private func tipRow(_ text: String, icon: String) -> some View {
-        Label {
-            Text(text)
-                .foregroundStyle(Color.fsWhite)
-        } icon: {
-            Image(systemName: icon)
-                .foregroundStyle(Color.fsLime)
-        }
-    }
 }
 
 #if DEBUG
