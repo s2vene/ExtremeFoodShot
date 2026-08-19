@@ -111,6 +111,12 @@ struct ContentView: View {
                     .frame(width:40, height: 40)
                 
                 Spacer()
+
+                CaptureAspectRatioButton(
+                    camera: model.camera,
+                    isDisabled: model.isExperimentRunning
+                )
+
                 Button {
                     showAlbum = true
                 } label: {
@@ -201,6 +207,7 @@ struct ContentView: View {
                  : "0 / \(model.maximumCandidates)")
             .font(.fsBody)
             .foregroundStyle(Color.fsWhite)
+            .padding(.bottom, 25)
             
             
             HStack(spacing: 10) {
@@ -263,6 +270,35 @@ struct ContentView: View {
         
     }
     
+}
+
+private struct CaptureAspectRatioButton: View {
+    @ObservedObject var camera: CameraService
+    let isDisabled: Bool
+
+    var body: some View {
+        Button {
+            cycleCaptureAspectRatio()
+        } label: {
+            Text(camera.captureAspectRatio.rawValue)
+                .font(.fsBody)
+                .foregroundStyle(Color.fsWhite)
+                .frame(minWidth: 34, minHeight: 30)
+        }
+        .buttonStyle(.glass)
+        .disabled(isDisabled)
+    }
+
+    private func cycleCaptureAspectRatio() {
+        switch camera.captureAspectRatio {
+        case .portrait16x9:
+            camera.captureAspectRatio = .portrait3x4
+        case .portrait3x4:
+            camera.captureAspectRatio = .square
+        case .square:
+            camera.captureAspectRatio = .portrait16x9
+        }
+    }
 }
 
 private struct CaptureAspectRatioMask: View {
