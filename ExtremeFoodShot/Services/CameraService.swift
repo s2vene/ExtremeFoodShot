@@ -6,6 +6,7 @@ import UIKit
 
 final class CameraService: NSObject, ObservableObject {
     let session = AVCaptureSession()
+    var onCaptureCompleted: (() -> Void)?
 
     @Published private(set) var authorizationDenied = false
     @Published private(set) var isRunning = false
@@ -218,6 +219,9 @@ final class CameraService: NSObject, ObservableObject {
                     self.candidates.append(contentsOf: candidates)
                     self.candidates.sort { $0.recommendationScore > $1.recommendationScore }
                     self.isCapturing = false
+                    if !candidates.isEmpty {
+                        self.onCaptureCompleted?()
+                    }
                 }
             }
         }
@@ -680,6 +684,7 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
             self.candidates.append(candidate)
             self.candidates.sort { $0.recommendationScore > $1.recommendationScore }
             self.isCapturing = false
+            self.onCaptureCompleted?()
         }
     }
 }
