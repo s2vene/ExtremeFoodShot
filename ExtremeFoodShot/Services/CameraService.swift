@@ -392,7 +392,12 @@ final class CameraService: NSObject, ObservableObject {
         guard session.canAddInput(input) else { throw CameraError.configurationFailed }
         session.addInput(input)
         cameraInput = input
-        selectedLens = camera.deviceType == .builtInUltraWideCamera ? .ultraWide : .wide
+        let configuredLens: CameraLens = camera.deviceType == .builtInUltraWideCamera
+            ? .ultraWide
+            : .wide
+        DispatchQueue.main.async {
+            self.selectedLens = configuredLens
+        }
 
         guard session.canAddOutput(photoOutput) else { throw CameraError.configurationFailed }
         session.addOutput(photoOutput)
