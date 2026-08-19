@@ -106,6 +106,13 @@ enum CaptureAspectRatio: String, CaseIterable, Identifiable {
         case .portrait3x4: 3.0 / 4.0
         }
     }
+
+    var verticalCropBias: CGFloat {
+        switch self {
+        case .portrait16x9: 0
+        case .square, .portrait3x4: 0.075
+        }
+    }
 }
 
 enum MotionPhase: String {

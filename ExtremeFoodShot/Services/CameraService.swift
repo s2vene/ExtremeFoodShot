@@ -613,9 +613,11 @@ final class CameraService: NSObject, ObservableObject {
             cropWidth = extent.width
             cropHeight = cropWidth / targetRatio
         }
+        let availableVerticalCrop = max(0, extent.height - cropHeight)
+        let verticalOffset = availableVerticalCrop * aspectRatio.verticalCropBias
         let cropRect = CGRect(
             x: extent.midX - cropWidth / 2,
-            y: extent.midY - cropHeight / 2,
+            y: extent.midY - cropHeight / 2 + verticalOffset,
             width: cropWidth,
             height: cropHeight
         ).integral

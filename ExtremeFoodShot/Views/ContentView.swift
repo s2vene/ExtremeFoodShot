@@ -41,6 +41,8 @@ struct ContentView: View {
                 )
                 .ignoresSafeArea()
 
+                CaptureAspectRatioMask(camera: model.camera)
+
                 VStack(spacing: 14) {
                     header
                     Spacer()
@@ -261,6 +263,56 @@ struct ContentView: View {
         
     }
     
+}
+
+private struct CaptureAspectRatioMask: View {
+    @ObservedObject var camera: CameraService
+
+    var body: some View {
+        GeometryReader { proxy in
+            if camera.captureAspectRatio != .portrait16x9 {
+                let fullRect = CGRect(origin: .zero, size: proxy.size)
+                let clearRect = fittedRect(
+                    aspectRatio: camera.captureAspectRatio.value,
+                    inside: fullRect
+                )
+
+                Path { path in
+                    path.addRect(fullRect)
+                    path.addRect(clearRect)
+                }
+                .fill(
+                    Color.fsNavy.opacity(0.5),
+                    style: FillStyle(eoFill: true)
+                )
+                .animation(.easeInOut(duration: 0.2), value: camera.captureAspectRatio)
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func fittedRect(aspectRatio: CGFloat, inside bounds: CGRect) -> CGRect {
+        let boundsRatio = bounds.width / bounds.height
+        let size: CGSize
+
+        if boundsRatio > aspectRatio {
+            size = CGSize(width: bounds.height * aspectRatio, height: bounds.height)
+        } else {
+            size = CGSize(width: bounds.width, height: bounds.width / aspectRatio)
+        }
+
+        let availableVerticalCrop = max(0, bounds.height - size.height)
+        let verticalOffset = availableVerticalCrop * camera.captureAspectRatio.verticalCropBias
+
+        return CGRect(
+            x: bounds.midX - size.width / 2,
+            y: bounds.midY - size.height / 2 - verticalOffset,
+            width: size.width,
+            height: size.height
+        )
+    }
 }
 
 
