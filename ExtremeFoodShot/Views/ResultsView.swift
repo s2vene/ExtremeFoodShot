@@ -103,7 +103,7 @@ private struct CandidateCard: View {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
-                        .aspectRatio(9.0 / 16.0, contentMode: .fill)
+                        .aspectRatio(candidate.testSettings.aspectRatio.value, contentMode: .fill)
                         .clipped()
 
                     if candidate.isSelected {

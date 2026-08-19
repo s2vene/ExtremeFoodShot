@@ -20,6 +20,7 @@ final class CameraService: NSObject, ObservableObject {
     @Published private(set) var supportsRAW = false
     @Published private(set) var supportsProRAW = false
     @Published var selectedLens: CameraLens = .ultraWide
+    @Published var captureAspectRatio: CaptureAspectRatio = .portrait16x9
     @Published private(set) var automaticCaptureMode: AutomaticCaptureMode = .photo
     @Published private(set) var exposurePreset: ExposurePreset = .nearBalanced
     @Published private(set) var focusPreset: FocusPreset = .continuous
@@ -460,6 +461,7 @@ final class CameraService: NSObject, ObservableObject {
 
     private var testSettingsSnapshot: CameraTestSnapshot {
         CameraTestSnapshot(
+            aspectRatio: captureAspectRatio,
             lens: selectedLens,
             exposure: exposurePreset,
             focus: focusPreset,
@@ -588,20 +590,20 @@ final class CameraService: NSObject, ObservableObject {
 
     private func jpegData(from pixelBuffer: CVPixelBuffer) -> Data? {
         let image = CIImage(cvPixelBuffer: pixelBuffer).oriented(.right)
-        return jpegData16By9(from: image)
+        return jpegData(from: image, aspectRatio: captureAspectRatio)
     }
 
-    private func jpegData16By9(from data: Data) -> Data? {
+    private func jpegData(from data: Data, aspectRatio: CaptureAspectRatio) -> Data? {
         guard let image = CIImage(data: data, options: [.applyOrientationProperty: true]) else {
             return nil
         }
-        return jpegData16By9(from: image)
+        return jpegData(from: image, aspectRatio: aspectRatio)
     }
 
-    private func jpegData16By9(from image: CIImage) -> Data? {
+    private func jpegData(from image: CIImage, aspectRatio: CaptureAspectRatio) -> Data? {
         let extent = image.extent.integral
         guard extent.width > 0, extent.height > 0 else { return nil }
-        let targetRatio = 9.0 / 16.0
+        let targetRatio = aspectRatio.value
         let cropWidth: CGFloat
         let cropHeight: CGFloat
         if extent.width / extent.height > targetRatio {
@@ -646,7 +648,10 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
         }
         guard let capture,
               let originalData = photo.fileDataRepresentation(),
-              let data = jpegData16By9(from: originalData) else {
+              let data = jpegData(
+                from: originalData,
+                aspectRatio: capture.testSettings.aspectRatio
+              ) else {
             DispatchQueue.main.async { self.isCapturing = false }
             return
         }

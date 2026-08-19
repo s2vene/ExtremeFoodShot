@@ -24,6 +24,15 @@ struct TuningView: View {
                 }
                 .listRowBackground(Color.fsNavy)
 
+                Section("촬영 비율") {
+                    Picker("촬영 비율", selection: $camera.captureAspectRatio) {
+                        ForEach(CaptureAspectRatio.allCases) { ratio in
+                            Text(ratio.rawValue).tag(ratio)
+                        }
+                    }
+                }
+                .listRowBackground(Color.fsNavy)
+
                 Section("촬영 방식") {
                     settingRow("자동 촬영", value: "고화질 사진", icon: "camera.fill")
                     settingRow("렌즈", value: "0.5× 초광각", icon: "camera.aperture")

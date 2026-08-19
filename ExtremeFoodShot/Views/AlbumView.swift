@@ -76,7 +76,7 @@ struct AlbumView: View {
 private struct AlbumSessionView: View {
     let session: AlbumSession
     @ObservedObject var album: AlbumStore
-    @State private var selectedPhoto: AlbumPhoto?
+    @State private var selectedPhotoIDs: Set<UUID> = []
     @State private var previewPhoto: AlbumPhoto?
     @State private var saveMessage: String?
 
@@ -87,14 +87,21 @@ private struct AlbumSessionView: View {
             LazyVGrid(columns: columns, spacing: 20) {
                 ForEach(session.photos) { photo in
                     if let image = photo.image {
+                        let isSelected = selectedPhotoIDs.contains(photo.id)
                         ZStack(alignment: .topTrailing) {
                             Image(uiImage: image)
                                 .resizable()
                                 .scaledToFill()
-                                .aspectRatio(9.0 / 16.0, contentMode: .fill)
+                                .aspectRatio(image.size.width / image.size.height, contentMode: .fill)
                                 .clipped()
                                 .contentShape(Rectangle())
-                                .onTapGesture { selectedPhoto = photo }
+                                .onTapGesture {
+                                    if isSelected {
+                                        selectedPhotoIDs.remove(photo.id)
+                                    } else {
+                                        selectedPhotoIDs.insert(photo.id)
+                                    }
+                                }
 
                             Button {
                                 previewPhoto = photo
@@ -110,7 +117,7 @@ private struct AlbumSessionView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 20))
                         .overlay {
                             RoundedRectangle(cornerRadius: 20)
-                                .stroke(selectedPhoto?.id == photo.id ? .orange : .clear, lineWidth: 3)
+                                .stroke(isSelected ? .orange : .clear, lineWidth: 3)
                         }
                     }
                 }
@@ -122,18 +129,18 @@ private struct AlbumSessionView: View {
         .navigationTitle(session.capturedAt.formatted(date: .abbreviated, time: .omitted))
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("사진 앱에 저장") {
-                    guard let selectedPhoto else { return }
+                Button("선택 사진 저장(\(selectedPhotoIDs.count))") {
+                    let selectedPhotos = session.photos.filter { selectedPhotoIDs.contains($0.id) }
                     Task {
                         do {
-                            try await album.saveToPhotoLibrary(selectedPhoto)
-                            saveMessage = "사진 앱에 저장했습니다."
+                            let savedCount = try await album.saveToPhotoLibrary(selectedPhotos)
+                            saveMessage = "사진 \(savedCount)장을 사진 앱에 저장했습니다."
                         } catch {
                             saveMessage = error.localizedDescription
                         }
                     }
                 }
-                .disabled(selectedPhoto == nil)
+                .disabled(selectedPhotoIDs.isEmpty)
             }
         }
         .alert("저장 결과", isPresented: Binding(
