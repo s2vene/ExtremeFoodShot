@@ -13,11 +13,16 @@ struct TuningView: View {
                     Stepper(value: $model.maximumCandidates, in: 3...15) {
                         LabeledContent("최대 촬영 수") {
                             Text("\(model.maximumCandidates)장")
-                                .font(.fsTitle2)
+                                .foregroundStyle(Color.fsLime)
                                 .monospacedDigit()
                         }
                         .font(.fsBody)
                     }
+
+                }
+                header: {
+                    Text("촬영 설정")
+                        .font(.fsTitle2)
                 }
                 .padding(6)
                 .listRowBackground(Color.fsWhite.opacity(0.05))
@@ -33,20 +38,23 @@ struct TuningView: View {
                 .padding(6)
                 .listRowBackground(Color.fsWhite.opacity(0.05))
 
-
                 Section {
                     settingRow("렌즈", value: "0.5× 초광각", icon: "camera.aperture")
                     settingRow("조명", value: "토치 100%", icon: "flashlight.on.fill")
                     settingRow("초점", value: "자동", icon: "wand.and.stars")
                     settingRow("셔터 스피드", value: "1/50초", icon: "timer")
+                } header: {
+                    Text("촬영 정보")
+                        .font(.fsTitle2)
                 }
                 .font(.fsBody)
                 .padding(6)
                 .listRowBackground(Color.fsWhite.opacity(0.05))
+                .listSectionSpacing(50)
 
             }
             .scrollContentBackground(.hidden)
-            .listSectionSpacing(8)
+            .listSectionSpacing(10)
             .background(Color.fsNavy)
             .foregroundStyle(Color.fsWhite)
             .tint(Color.fsLime)

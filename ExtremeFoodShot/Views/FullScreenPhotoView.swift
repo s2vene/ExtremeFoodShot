@@ -8,7 +8,7 @@ struct FullScreenPhotoView: View {
     @State private var lastScale = 1.0
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack {
             Color.black.ignoresSafeArea()
 
             Image(uiImage: image)
@@ -41,6 +41,7 @@ struct FullScreenPhotoView: View {
                     .background(.black.opacity(0.55), in: Circle())
             }
             .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         }
         .statusBarHidden()
     }
