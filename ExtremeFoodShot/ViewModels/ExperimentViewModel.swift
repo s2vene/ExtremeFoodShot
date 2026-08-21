@@ -5,6 +5,7 @@ final class ExperimentViewModel: ObservableObject {
     var camera = CameraService()
     let motion = MotionAnalyzer()
     let album = AlbumStore()
+    private let haptics = HapticService()
 
     let lightingMode: LightingMode = .torch
     @Published var maximumCandidates: Int {
@@ -31,6 +32,9 @@ final class ExperimentViewModel: ObservableObject {
                   !self.camera.isCapturing,
                   self.camera.candidates.count < self.maximumCandidates else { return }
             self.captureAutomatically(snapshot: snapshot)
+        }
+        camera.onCaptureCompleted = { [weak self] in
+            self?.haptics.playCaptureCompleted()
         }
     }
 
