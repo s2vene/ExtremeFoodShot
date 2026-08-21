@@ -4,6 +4,18 @@ struct AlbumView: View {
     @ObservedObject var album: AlbumStore
 
     private let columns = [GridItem(.adaptive(minimum: 160), spacing: 14)]
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.dateFormat = "M월 d일"
+        return formatter
+    }()
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
 
     var body: some View {
         ZStack{
@@ -22,14 +34,23 @@ struct AlbumView: View {
                 
                 } else {
                     ScrollView {
-                        LazyVGrid(columns: columns, spacing: 20) {
-                            ForEach(album.sessions) { session in
-                                NavigationLink {
-                                    AlbumSessionView(session: session, album: album)
-                                } label: {
-                                    sessionCard(session)
+                        LazyVStack(alignment: .leading, spacing: 28) {
+                            ForEach(groupedSessions, id: \.date) { group in
+                                VStack(alignment: .leading, spacing: 14) {
+                                    Text(Self.dateFormatter.string(from: group.date))
+                                        .font(.fsTitle1)
+
+                                    LazyVGrid(columns: columns, spacing: 20) {
+                                        ForEach(group.sessions) { session in
+                                            NavigationLink {
+                                                AlbumSessionView(session: session, album: album)
+                                            } label: {
+                                                sessionCard(session)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                         .padding()
@@ -46,6 +67,16 @@ struct AlbumView: View {
         .toolbarColorScheme(.dark, for: .navigationBar)
     }
 
+    private var groupedSessions: [(date: Date, sessions: [AlbumSession])] {
+        Dictionary(grouping: album.sessions) {
+            Calendar.current.startOfDay(for: $0.capturedAt)
+        }
+        .map { date, sessions in
+            (date: date, sessions: sessions.sorted { $0.capturedAt > $1.capturedAt })
+        }
+        .sorted { $0.date > $1.date }
+    }
+
     private func sessionCard(_ session: AlbumSession) -> some View {
         ZStack(alignment: .bottom) {
             Group {
@@ -57,12 +88,23 @@ struct AlbumView: View {
             }
             .frame(height: 173)
             .clipped()
+            .overlay(alignment: .bottom) {
+                LinearGradient(
+                    colors: [.clear, Color.fsNavy.opacity(0.5)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 76)
+                .allowsHitTesting(false)
+            }
             .clipShape(RoundedRectangle(cornerRadius: 20))
 
-            HStack{
-                Text(session.capturedAt.formatted(date: .abbreviated, time: .shortened))
+            HStack {
+                Text(Self.timeFormatter.string(from: session.capturedAt))
                     .font(.fsBody)
-                
+
+                Spacer()
+
                 HStack(spacing: 4) {
                     Image(systemName: "photo.stack.fill")
                         .foregroundStyle(Color.fsLime)
@@ -70,7 +112,8 @@ struct AlbumView: View {
                 }
                 .font(.fsBody)
             }
-            .padding(.bottom, 20)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
         }
         .foregroundStyle(Color.fsWhite)
     }
