@@ -11,44 +11,52 @@ struct ResultsView: View {
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
 
     var body: some View {
-        ScrollView {
-            if camera.candidates.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "camera")
-                        .font(.largeTitle)
-                        .foregroundStyle(Color.fsLime)
-                    Text("후보 없음")
-                        .font(.fsTitle2)
-                        .foregroundStyle(Color.fsWhite)
-                    Text("촬영을 다시 진행해 주세요.")
-                        .font(.fsBody)
-                        .foregroundStyle(Color.fsWhite)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.top, 80)
-            } else {
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(camera.candidates) { candidate in
-                        CandidateCard(
-                            candidate: candidate,
-                            onSelect: { camera.toggleSelection(for: candidate.id) },
-                            onPreview: { previewCandidate = candidate }
-                        )
+        VStack(alignment: .trailing) {
+            Text("\(selectedCount)/\(camera.candidates.count)장 선택됨")
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                .font(.fsCaption1)
+                .foregroundStyle(Color.fsWhite.opacity(0.7))
+
+            ScrollView {
+                if camera.candidates.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "camera")
+                            .font(.largeTitle)
+                            .foregroundStyle(Color.fsLime)
+                        Text("후보 없음")
+                            .font(.fsTitle2)
+                            .foregroundStyle(Color.fsWhite)
+                        Text("촬영을 다시 진행해 주세요.")
+                            .font(.fsBody)
+                            .foregroundStyle(Color.fsWhite)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 80)
+                } else {
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(camera.candidates) { candidate in
+                            CandidateCard(
+                                candidate: candidate,
+                                onSelect: { camera.toggleSelection(for: candidate.id) },
+                                onPreview: { previewCandidate = candidate }
+                            )
+                        }
+                    }
+                    .padding()
                 }
-                .padding()
             }
         }
         .background(Color.fsNavy.ignoresSafeArea())
         .tint(Color.fsLime)
-        .navigationTitle("촬영 후보 \(camera.candidates.count)장")
+        .navigationTitle("직전 촬영 결과")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.fsNavy, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("선택 사진 저장(\(selectedCount))") {
+                Button {
                     Task {
                         do {
                             let savedCount = try await camera.saveSelected()
@@ -57,9 +65,13 @@ struct ResultsView: View {
                             saveMessage = error.localizedDescription
                         }
                     }
+                } label: {
+                    Image(systemName: "square.and.arrow.down")
+                        .frame(width: 24, height: 24)
                 }
                 .disabled(!camera.candidates.contains(where: \.isSelected))
                 .foregroundStyle(Color.fsLime)
+                .buttonBorderShape(.circle)
             }
 
             ToolbarSpacer(.fixed, placement: .confirmationAction)
@@ -69,9 +81,11 @@ struct ResultsView: View {
                     shareSelectedPhotos()
                 } label: {
                     Image(systemName: "square.and.arrow.up")
+                        .frame(width: 24, height: 24)
                 }
                 .disabled(selectedCount == 0)
                 .foregroundStyle(Color.fsLime)
+                .buttonBorderShape(.circle)
                 .accessibilityLabel("선택 사진 공유")
             }
 
@@ -87,6 +101,9 @@ struct ResultsView: View {
                 }
                 .disabled(selectedCount != 1)
                 .foregroundStyle(Color.fsLime)
+                .buttonBorderShape(.circle)
+                .opacity(selectedCount == 1 ? 1 : 0.3)
+                .animation(.easeInOut(duration: 0.15), value: selectedCount)
             }
         }
         .alert("저장 결과", isPresented: Binding(
@@ -173,7 +190,7 @@ private struct CandidateCard: View {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(Color.fsLime)
                             .font(.system(size: 25))
-                            .padding(20)
+                            .padding(12)
                             .allowsHitTesting(false)
                     }
                 }
@@ -188,7 +205,7 @@ private struct CandidateCard: View {
                     .frame(width: 36, height: 36)
                     .background(.black.opacity(0.55), in: Circle())
             }
-            .padding(20)
+            .padding(12)
         }
         .foregroundStyle(Color.fsWhite)
         .background(candidate.isSelected ? Color.fsLime.opacity(0.18) : Color.fsWhite.opacity(0.1))

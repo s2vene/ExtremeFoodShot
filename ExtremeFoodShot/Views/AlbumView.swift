@@ -21,17 +21,18 @@ struct AlbumView: View {
         ZStack{
             Color.fsNavy
                 .ignoresSafeArea()
-            
+
             Group {
                 if album.sessions.isEmpty {
-                    ContentUnavailableView(
-                        "아직 촬영 기록이 없어요",
-                        systemImage: "photo.stack",
-                        description: Text("자동 촬영을 완료하면 후보 사진이 여기에 보관됩니다.")
-                    )
-                    .font(.fsBody)
-                    .tint(Color.fsLime)
-                
+                    VStack(spacing:10){
+                        Image(systemName:"photo.stack")
+                            .font(Font.system(size: 40))
+                            .foregroundStyle(Color.fsWhite.opacity(0.5))
+                            Text( "아직 촬영 기록이 없어요.")
+                                .font(.fsBody)
+
+                    }
+
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 28) {
@@ -135,20 +136,40 @@ private struct AlbumSessionView: View {
     @State private var sharePayload: SharePayload?
 
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 20)]
+    private static let titleFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.dateFormat = "M/d HH:mm"
+        return formatter
+    }()
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 20) {
-                ForEach(session.photos) { photo in
-                    photoCard(photo)
+
+        VStack(alignment: .trailing){
+
+            Text("\(selectedPhotoIDs.count)/\(session.photos.count)장 선택됨")
+                .padding(.horizontal, 20)
+                .padding(.top, 10 )
+                .font(.fsCaption1)
+                .foregroundStyle(Color.fsWhite.opacity(0.7))
+
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 20) {
+                    ForEach(session.photos) { photo in
+                        photoCard(photo)
+                    }
                 }
+                .padding(20)
             }
-            .padding()
+
+
+
         }
         .background(Color.fsNavy.ignoresSafeArea())
         .foregroundStyle(Color.fsWhite)
         .tint(Color.fsLime)
-        .navigationTitle(session.capturedAt.formatted(date: .abbreviated, time: .omitted))
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(Self.titleFormatter.string(from: session.capturedAt))
         .toolbarBackground(Color.fsNavy, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
@@ -157,14 +178,12 @@ private struct AlbumSessionView: View {
                 Button {
                     saveSelectedPhotos()
                 } label: {
-                    HStack {
-                        Text("\(selectedPhotoIDs.count)장 저장")
-                        Image(systemName: "square.and.arrow.down")
-                            .font(.fsBody)
-                    }
+                    Image(systemName: "square.and.arrow.down")
+                        .frame(width: 24, height: 24)
                 }
                 .disabled(selectedPhotoIDs.isEmpty)
                 .foregroundStyle(Color.fsLime)
+                .buttonBorderShape(.circle)
             }
 
             ToolbarSpacer(.fixed, placement: .confirmationAction)
@@ -174,9 +193,11 @@ private struct AlbumSessionView: View {
                     shareSelectedPhotos()
                 } label: {
                     Image(systemName: "square.and.arrow.up")
+                        .frame(width: 24, height: 24)
                 }
                 .disabled(selectedPhotoIDs.isEmpty)
                 .foregroundStyle(Color.fsLime)
+                .buttonBorderShape(.circle)
                 .accessibilityLabel("선택 사진 공유")
             }
 
@@ -186,12 +207,15 @@ private struct AlbumSessionView: View {
                 Button {
                     shareSelectedPhotoToInstagramStory()
                 } label: {
-                   Image("instagram icon")
+                    Image("instagram icon")
                         .resizable()
                         .frame(width: 24, height: 24)
                 }
                 .disabled(selectedPhotoIDs.count != 1)
                 .foregroundStyle(Color.fsLime)
+                .buttonBorderShape(.circle)
+                .opacity(selectedPhotoIDs.count == 1 ? 1 : 0.3)
+                .animation(.easeInOut(duration: 0.15), value: selectedPhotoIDs.count)
             }
         }
         .alert("저장 결과", isPresented: Binding(
@@ -241,7 +265,7 @@ private struct AlbumSessionView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(Color.fsLime)
                             .font(.system(size: 25))
-                            .padding(20)
+                            .padding(12)
                             .allowsHitTesting(false)
                     }
                 }
@@ -259,7 +283,7 @@ private struct AlbumSessionView: View {
                         .frame(width: 36, height: 36)
                         .background(.black.opacity(0.55), in: Circle())
                 }
-                .padding(20)
+                .padding(12)
             }
             .foregroundStyle(Color.fsWhite)
             .background(isSelected ? Color.fsLime.opacity(0.18) : Color.fsWhite.opacity(0.1))
