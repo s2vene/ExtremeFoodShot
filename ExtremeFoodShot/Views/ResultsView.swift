@@ -49,7 +49,7 @@ struct ResultsView: View {
         }
         .background(Color.fsNavy.ignoresSafeArea())
         .tint(Color.fsLime)
-        .navigationTitle("촬영 결과 \(camera.candidates.count)장")
+        .navigationTitle("직전 촬영 결과")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.fsNavy, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
@@ -67,9 +67,11 @@ struct ResultsView: View {
                     }
                 } label: {
                     Image(systemName: "square.and.arrow.down")
+                        .frame(width: 24, height: 24)
                 }
                 .disabled(!camera.candidates.contains(where: \.isSelected))
                 .foregroundStyle(Color.fsLime)
+                .buttonBorderShape(.circle)
             }
 
             ToolbarSpacer(.fixed, placement: .confirmationAction)
@@ -79,9 +81,11 @@ struct ResultsView: View {
                     shareSelectedPhotos()
                 } label: {
                     Image(systemName: "square.and.arrow.up")
+                        .frame(width: 24, height: 24)
                 }
                 .disabled(selectedCount == 0)
                 .foregroundStyle(Color.fsLime)
+                .buttonBorderShape(.circle)
                 .accessibilityLabel("선택 사진 공유")
             }
 
@@ -97,6 +101,7 @@ struct ResultsView: View {
                 }
                 .disabled(selectedCount != 1)
                 .foregroundStyle(Color.fsLime)
+                .buttonBorderShape(.circle)
                 .opacity(selectedCount == 1 ? 1 : 0.3)
                 .animation(.easeInOut(duration: 0.15), value: selectedCount)
             }

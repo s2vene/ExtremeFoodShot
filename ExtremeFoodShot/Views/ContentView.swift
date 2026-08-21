@@ -156,13 +156,13 @@ struct ContentView: View {
             VStack(spacing:10){
                 if showsCameraAuthorizationDenied {
                     Label("설정에서 카메라 권한을 허용해 주세요.", systemImage: "exclamationmark.triangle.fill")
-                        .font(.fsTitle2)
+                        .font(.fsBody)
                         .foregroundStyle(Color.fsLime)
                 }
                 if showsMotionUnavailable {
                     Label("Device Motion을 사용할 수 없습니다.", systemImage: "waveform.path.ecg")
                         .foregroundStyle(Color.fsLime)
-                        .font(.fsTitle2)
+                        .font(.fsBody)
                 }
             }
         }
@@ -215,18 +215,16 @@ struct ContentView: View {
                 Button {
                     model.showResults = true
                 } label: {
-                    HStack(spacing:-2) {
+                    HStack(spacing: -2) {
                         Image(systemName: "chevron.compact.left")
                         Image(systemName: "photo.on.rectangle.angled")
-
-
-                }
-                    .padding(.vertical, 12)
-                        .font(.body)
-                        .foregroundStyle(Color.fsWhite)
-                        
+                    }
+                    .font(.body)
+                    .foregroundStyle(Color.fsWhite)
+                    .frame(width: 40, height: 40)
                 }
                 .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
                 .disabled(model.camera.candidates.isEmpty || model.isExperimentRunning)
                 
                 ZStack{
@@ -250,15 +248,15 @@ struct ContentView: View {
                 Button {
                     ()
                 } label: {
-                    HStack(spacing:-2){
+                    HStack(spacing: -2) {
                         Image(systemName: "chevron.compact.left")
                         Image(systemName: "photo.on.rectangle.angled")
-                }
-                        .font(.body)
-                        .padding(.vertical, 10)
-                        
+                    }
+                    .font(.body)
+                    .frame(width: 40, height: 40)
                 }
                 .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
                 .opacity(0)
                 
                 

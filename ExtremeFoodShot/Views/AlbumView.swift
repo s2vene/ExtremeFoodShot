@@ -21,17 +21,18 @@ struct AlbumView: View {
         ZStack{
             Color.fsNavy
                 .ignoresSafeArea()
-            
+
             Group {
                 if album.sessions.isEmpty {
-                    ContentUnavailableView(
-                        "아직 촬영 기록이 없어요",
-                        systemImage: "photo.stack",
-                        description: Text("자동 촬영을 완료하면 후보 사진이 여기에 보관됩니다.")
-                    )
-                    .font(.fsBody)
-                    .tint(Color.fsLime)
-                
+                    VStack(spacing:10){
+                        Image(systemName:"photo.stack")
+                            .font(Font.system(size: 40))
+                            .foregroundStyle(Color.fsWhite.opacity(0.5))
+                            Text( "아직 촬영 기록이 없어요.")
+                                .font(.fsBody)
+
+                    }
+
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 28) {
@@ -177,11 +178,12 @@ private struct AlbumSessionView: View {
                 Button {
                     saveSelectedPhotos()
                 } label: {
-                        Image(systemName: "square.and.arrow.down")
-
+                    Image(systemName: "square.and.arrow.down")
+                        .frame(width: 24, height: 24)
                 }
                 .disabled(selectedPhotoIDs.isEmpty)
                 .foregroundStyle(Color.fsLime)
+                .buttonBorderShape(.circle)
             }
 
             ToolbarSpacer(.fixed, placement: .confirmationAction)
@@ -191,9 +193,11 @@ private struct AlbumSessionView: View {
                     shareSelectedPhotos()
                 } label: {
                     Image(systemName: "square.and.arrow.up")
+                        .frame(width: 24, height: 24)
                 }
                 .disabled(selectedPhotoIDs.isEmpty)
                 .foregroundStyle(Color.fsLime)
+                .buttonBorderShape(.circle)
                 .accessibilityLabel("선택 사진 공유")
             }
 
@@ -203,12 +207,13 @@ private struct AlbumSessionView: View {
                 Button {
                     shareSelectedPhotoToInstagramStory()
                 } label: {
-                   Image("instagram icon")
+                    Image("instagram icon")
                         .resizable()
                         .frame(width: 24, height: 24)
                 }
                 .disabled(selectedPhotoIDs.count != 1)
                 .foregroundStyle(Color.fsLime)
+                .buttonBorderShape(.circle)
                 .opacity(selectedPhotoIDs.count == 1 ? 1 : 0.3)
                 .animation(.easeInOut(duration: 0.15), value: selectedPhotoIDs.count)
             }
