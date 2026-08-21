@@ -4,6 +4,8 @@ import SwiftUI
 struct ResultsView: View {
     @ObservedObject var camera: CameraService
     @State private var saveMessage: String?
+    @State private var storyShareMessage: String?
+    @State private var sharePayload: SharePayload?
     @State private var previewCandidate: CaptureCandidate?
 
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
@@ -59,6 +61,33 @@ struct ResultsView: View {
                 .disabled(!camera.candidates.contains(where: \.isSelected))
                 .foregroundStyle(Color.fsLime)
             }
+
+            ToolbarSpacer(.fixed, placement: .confirmationAction)
+
+            ToolbarItem(placement: .confirmationAction) {
+                Button {
+                    shareSelectedPhotos()
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .disabled(selectedCount == 0)
+                .foregroundStyle(Color.fsLime)
+                .accessibilityLabel("선택 사진 공유")
+            }
+
+            ToolbarSpacer(.fixed, placement: .confirmationAction)
+
+            ToolbarItem(placement: .confirmationAction) {
+                Button {
+                    shareSelectedPhotoToInstagramStory()
+                } label: {
+                    Image("instagram icon")
+                        .resizable()
+                        .frame(width: 24, height: 24)
+                }
+                .disabled(selectedCount != 1)
+                .foregroundStyle(Color.fsLime)
+            }
         }
         .alert("저장 결과", isPresented: Binding(
             get: { saveMessage != nil },
@@ -67,6 +96,17 @@ struct ResultsView: View {
             Button("확인", role: .cancel) { saveMessage = nil }
         } message: {
             Text(saveMessage ?? "")
+        }
+        .alert("Instagram 스토리 공유", isPresented: Binding(
+            get: { storyShareMessage != nil },
+            set: { if !$0 { storyShareMessage = nil } }
+        )) {
+            Button("확인", role: .cancel) { storyShareMessage = nil }
+        } message: {
+            Text(storyShareMessage ?? "")
+        }
+        .sheet(item: $sharePayload) { payload in
+            ShareSheet(images: payload.images)
         }
         .fullScreenCover(item: $previewCandidate) { candidate in
             if let image = candidate.image {
@@ -77,6 +117,25 @@ struct ResultsView: View {
 
     private var selectedCount: Int {
         camera.candidates.filter(\.isSelected).count
+    }
+
+    private func shareSelectedPhotos() {
+        let images = camera.candidates
+            .filter(\.isSelected)
+            .compactMap(\.image)
+
+        guard !images.isEmpty else { return }
+        sharePayload = SharePayload(images: images)
+    }
+
+    private func shareSelectedPhotoToInstagramStory() {
+        guard let candidate = camera.candidates.first(where: \.isSelected) else { return }
+
+        do {
+            try InstagramStoryShareService.shared.share(imageData: candidate.imageData)
+        } catch {
+            storyShareMessage = error.localizedDescription
+        }
     }
 }
 
