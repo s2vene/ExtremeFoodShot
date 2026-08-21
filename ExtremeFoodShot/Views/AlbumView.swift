@@ -131,6 +131,8 @@ private struct AlbumSessionView: View {
     @State private var selectedPhotoIDs: Set<UUID> = []
     @State private var previewPhoto: AlbumPhoto?
     @State private var saveMessage: String?
+    @State private var storyShareMessage: String?
+    @State private var sharePayload: SharePayload?
 
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 20)]
 
@@ -138,56 +140,7 @@ private struct AlbumSessionView: View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 20) {
                 ForEach(session.photos) { photo in
-                    if let image = photo.image {
-                        let isSelected = selectedPhotoIDs.contains(photo.id)
-                        ZStack(alignment: .topTrailing) {
-                            ZStack(alignment: .bottomTrailing) {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .aspectRatio(image.size.width / image.size.height, contentMode: .fill)
-                                    .clipped()
-
-                                if isSelected {
-                                    Color.fsLime
-                                        .opacity(0.4)
-                                        .allowsHitTesting(false)
-
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(Color.fsLime)
-                                        .font(.system(size: 25))
-                                        .padding(20)
-                                        .allowsHitTesting(false)
-                                }
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                if isSelected {
-                                    selectedPhotoIDs.remove(photo.id)
-                                } else {
-                                    selectedPhotoIDs.insert(photo.id)
-                                }
-                            }
-
-                            Button {
-                                previewPhoto = photo
-                            } label: {
-                                Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                    .font(.body.weight(.semibold))
-                                    .foregroundStyle(Color.fsLime)
-                                    .frame(width: 36, height: 36)
-                                    .background(.black.opacity(0.55), in: Circle())
-                            }
-                            .padding(20)
-                        }
-                        .foregroundStyle(Color.fsWhite)
-                        .background(isSelected ? Color.fsLime.opacity(0.18) : Color.fsWhite.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(isSelected ? Color.fsLime : Color.clear, lineWidth: 2)
-                        }
-                    }
+                    photoCard(photo)
                 }
             }
             .padding()
@@ -201,18 +154,43 @@ private struct AlbumSessionView: View {
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("선택 사진 저장(\(selectedPhotoIDs.count))") {
-                    let selectedPhotos = session.photos.filter { selectedPhotoIDs.contains($0.id) }
-                    Task {
-                        do {
-                            let savedCount = try await album.saveToPhotoLibrary(selectedPhotos)
-                            saveMessage = "사진 \(savedCount)장을 사진 앱에 저장했습니다."
-                        } catch {
-                            saveMessage = error.localizedDescription
-                        }
+                Button {
+                    saveSelectedPhotos()
+                } label: {
+                    HStack {
+                        Text("\(selectedPhotoIDs.count)장 저장")
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.fsBody)
                     }
                 }
                 .disabled(selectedPhotoIDs.isEmpty)
+                .foregroundStyle(Color.fsLime)
+            }
+
+            ToolbarSpacer(.fixed, placement: .confirmationAction)
+
+            ToolbarItem(placement: .confirmationAction) {
+                Button {
+                    shareSelectedPhotos()
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .disabled(selectedPhotoIDs.isEmpty)
+                .foregroundStyle(Color.fsLime)
+                .accessibilityLabel("선택 사진 공유")
+            }
+
+            ToolbarSpacer(.fixed, placement: .confirmationAction)
+
+            ToolbarItem(placement: .confirmationAction) {
+                Button {
+                    shareSelectedPhotoToInstagramStory()
+                } label: {
+                   Image("instagram icon")
+                        .resizable()
+                        .frame(width: 24, height: 24)
+                }
+                .disabled(selectedPhotoIDs.count != 1)
                 .foregroundStyle(Color.fsLime)
             }
         }
@@ -224,10 +202,115 @@ private struct AlbumSessionView: View {
         } message: {
             Text(saveMessage ?? "")
         }
+        .alert("Instagram 스토리 공유", isPresented: Binding(
+            get: { storyShareMessage != nil },
+            set: { if !$0 { storyShareMessage = nil } }
+        )) {
+            Button("확인", role: .cancel) { storyShareMessage = nil }
+        } message: {
+            Text(storyShareMessage ?? "")
+        }
+        .sheet(item: $sharePayload) { payload in
+            ShareSheet(images: payload.images)
+        }
         .fullScreenCover(item: $previewPhoto) { photo in
             if let image = photo.image {
                 FullScreenPhotoView(image: image)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func photoCard(_ photo: AlbumPhoto) -> some View {
+        if let image = photo.image {
+            let isSelected = selectedPhotoIDs.contains(photo.id)
+
+            ZStack(alignment: .topTrailing) {
+                ZStack(alignment: .bottomTrailing) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .aspectRatio(image.size.width / image.size.height, contentMode: .fill)
+                        .clipped()
+
+                    if isSelected {
+                        Color.fsLime
+                            .opacity(0.4)
+                            .allowsHitTesting(false)
+
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(Color.fsLime)
+                            .font(.system(size: 25))
+                            .padding(20)
+                            .allowsHitTesting(false)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    toggleSelection(of: photo.id)
+                }
+
+                Button {
+                    previewPhoto = photo
+                } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Color.fsLime)
+                        .frame(width: 36, height: 36)
+                        .background(.black.opacity(0.55), in: Circle())
+                }
+                .padding(20)
+            }
+            .foregroundStyle(Color.fsWhite)
+            .background(isSelected ? Color.fsLime.opacity(0.18) : Color.fsWhite.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(isSelected ? Color.fsLime : Color.clear, lineWidth: 2)
+            }
+        }
+    }
+
+    private func toggleSelection(of photoID: UUID) {
+        if selectedPhotoIDs.contains(photoID) {
+            selectedPhotoIDs.remove(photoID)
+        } else {
+            selectedPhotoIDs.insert(photoID)
+        }
+    }
+
+    private func saveSelectedPhotos() {
+        let selectedPhotos = session.photos.filter { selectedPhotoIDs.contains($0.id) }
+
+        Task {
+            do {
+                let savedCount = try await album.saveToPhotoLibrary(selectedPhotos)
+                saveMessage = "사진 \(savedCount)장을 사진 앱에 저장했습니다."
+            } catch {
+                saveMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func shareSelectedPhotos() {
+        let images = session.photos
+            .filter { selectedPhotoIDs.contains($0.id) }
+            .compactMap(\.image)
+
+        guard !images.isEmpty else { return }
+        sharePayload = SharePayload(images: images)
+    }
+
+    private func shareSelectedPhotoToInstagramStory() {
+        guard let photo = session.photos.first(where: { selectedPhotoIDs.contains($0.id) }) else {
+            return
+        }
+
+        do {
+            let imageData = try Data(contentsOf: photo.fileURL)
+            try InstagramStoryShareService.shared.share(imageData: imageData)
+        } catch {
+            storyShareMessage = error.localizedDescription
         }
     }
 }
