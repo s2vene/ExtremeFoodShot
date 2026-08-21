@@ -11,44 +11,52 @@ struct ResultsView: View {
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
 
     var body: some View {
-        ScrollView {
-            if camera.candidates.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "camera")
-                        .font(.largeTitle)
-                        .foregroundStyle(Color.fsLime)
-                    Text("후보 없음")
-                        .font(.fsTitle2)
-                        .foregroundStyle(Color.fsWhite)
-                    Text("촬영을 다시 진행해 주세요.")
-                        .font(.fsBody)
-                        .foregroundStyle(Color.fsWhite)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.top, 80)
-            } else {
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(camera.candidates) { candidate in
-                        CandidateCard(
-                            candidate: candidate,
-                            onSelect: { camera.toggleSelection(for: candidate.id) },
-                            onPreview: { previewCandidate = candidate }
-                        )
+        VStack(alignment: .trailing) {
+            Text("\(selectedCount)/\(camera.candidates.count)장 선택됨")
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                .font(.fsCaption1)
+                .foregroundStyle(Color.fsWhite.opacity(0.7))
+
+            ScrollView {
+                if camera.candidates.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "camera")
+                            .font(.largeTitle)
+                            .foregroundStyle(Color.fsLime)
+                        Text("후보 없음")
+                            .font(.fsTitle2)
+                            .foregroundStyle(Color.fsWhite)
+                        Text("촬영을 다시 진행해 주세요.")
+                            .font(.fsBody)
+                            .foregroundStyle(Color.fsWhite)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 80)
+                } else {
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(camera.candidates) { candidate in
+                            CandidateCard(
+                                candidate: candidate,
+                                onSelect: { camera.toggleSelection(for: candidate.id) },
+                                onPreview: { previewCandidate = candidate }
+                            )
+                        }
+                    }
+                    .padding()
                 }
-                .padding()
             }
         }
         .background(Color.fsNavy.ignoresSafeArea())
         .tint(Color.fsLime)
-        .navigationTitle("촬영 후보 \(camera.candidates.count)장")
+        .navigationTitle("촬영 결과 \(camera.candidates.count)장")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.fsNavy, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("선택 사진 저장(\(selectedCount))") {
+                Button {
                     Task {
                         do {
                             let savedCount = try await camera.saveSelected()
@@ -57,6 +65,8 @@ struct ResultsView: View {
                             saveMessage = error.localizedDescription
                         }
                     }
+                } label: {
+                    Image(systemName: "square.and.arrow.down")
                 }
                 .disabled(!camera.candidates.contains(where: \.isSelected))
                 .foregroundStyle(Color.fsLime)
@@ -87,6 +97,8 @@ struct ResultsView: View {
                 }
                 .disabled(selectedCount != 1)
                 .foregroundStyle(Color.fsLime)
+                .opacity(selectedCount == 1 ? 1 : 0.3)
+                .animation(.easeInOut(duration: 0.15), value: selectedCount)
             }
         }
         .alert("저장 결과", isPresented: Binding(

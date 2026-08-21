@@ -135,20 +135,40 @@ private struct AlbumSessionView: View {
     @State private var sharePayload: SharePayload?
 
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 20)]
+    private static let titleFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.dateFormat = "M/d HH:mm"
+        return formatter
+    }()
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 20) {
-                ForEach(session.photos) { photo in
-                    photoCard(photo)
+
+        VStack(alignment: .trailing){
+
+            Text("\(selectedPhotoIDs.count)/\(session.photos.count)장 선택됨")
+                .padding(.horizontal, 20)
+                .padding(.top, 10 )
+                .font(.fsCaption1)
+                .foregroundStyle(Color.fsWhite.opacity(0.7))
+
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 20) {
+                    ForEach(session.photos) { photo in
+                        photoCard(photo)
+                    }
                 }
+                .padding(20)
             }
-            .padding()
+
+
+
         }
         .background(Color.fsNavy.ignoresSafeArea())
         .foregroundStyle(Color.fsWhite)
         .tint(Color.fsLime)
-        .navigationTitle(session.capturedAt.formatted(date: .abbreviated, time: .omitted))
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(Self.titleFormatter.string(from: session.capturedAt))
         .toolbarBackground(Color.fsNavy, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
@@ -157,11 +177,8 @@ private struct AlbumSessionView: View {
                 Button {
                     saveSelectedPhotos()
                 } label: {
-                    HStack {
-                        Text("\(selectedPhotoIDs.count)장 저장")
                         Image(systemName: "square.and.arrow.down")
-                            .font(.fsBody)
-                    }
+
                 }
                 .disabled(selectedPhotoIDs.isEmpty)
                 .foregroundStyle(Color.fsLime)
@@ -192,6 +209,8 @@ private struct AlbumSessionView: View {
                 }
                 .disabled(selectedPhotoIDs.count != 1)
                 .foregroundStyle(Color.fsLime)
+                .opacity(selectedPhotoIDs.count == 1 ? 1 : 0.3)
+                .animation(.easeInOut(duration: 0.15), value: selectedPhotoIDs.count)
             }
         }
         .alert("저장 결과", isPresented: Binding(
@@ -241,7 +260,7 @@ private struct AlbumSessionView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(Color.fsLime)
                             .font(.system(size: 25))
-                            .padding(20)
+                            .padding(12)
                             .allowsHitTesting(false)
                     }
                 }
@@ -259,7 +278,7 @@ private struct AlbumSessionView: View {
                         .frame(width: 36, height: 36)
                         .background(.black.opacity(0.55), in: Circle())
                 }
-                .padding(20)
+                .padding(12)
             }
             .foregroundStyle(Color.fsWhite)
             .background(isSelected ? Color.fsLime.opacity(0.18) : Color.fsWhite.opacity(0.1))
