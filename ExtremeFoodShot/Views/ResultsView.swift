@@ -185,7 +185,7 @@ private struct CandidateCard: View {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(Color.fsLime)
                             .font(.system(size: 25))
-                            .padding(20)
+                            .padding(12)
                             .allowsHitTesting(false)
                     }
                 }
@@ -200,7 +200,7 @@ private struct CandidateCard: View {
                     .frame(width: 36, height: 36)
                     .background(.black.opacity(0.55), in: Circle())
             }
-            .padding(20)
+            .padding(12)
         }
         .foregroundStyle(Color.fsWhite)
         .background(candidate.isSelected ? Color.fsLime.opacity(0.18) : Color.fsWhite.opacity(0.1))
