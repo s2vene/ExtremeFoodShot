@@ -71,6 +71,35 @@ final class AlbumStore: ObservableObject {
         return photos.count
     }
 
+    func deleteSessions(withIDs sessionIDs: Set<UUID>) throws -> Int {
+        guard !sessionIDs.isEmpty else { return 0 }
+
+        let sessionsToDelete = sessions.filter { sessionIDs.contains($0.id) }
+        var deletedSessionIDs: Set<UUID> = []
+        var firstError: Error?
+
+        for session in sessionsToDelete {
+            let directory = rootURL.appendingPathComponent(session.id.uuidString, isDirectory: true)
+
+            do {
+                if fileManager.fileExists(atPath: directory.path) {
+                    try fileManager.removeItem(at: directory)
+                }
+                deletedSessionIDs.insert(session.id)
+            } catch {
+                firstError = firstError ?? error
+            }
+        }
+
+        sessions.removeAll { deletedSessionIDs.contains($0.id) }
+
+        if let firstError {
+            throw firstError
+        }
+
+        return deletedSessionIDs.count
+    }
+
     private func loadSessions() {
         do {
             try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)

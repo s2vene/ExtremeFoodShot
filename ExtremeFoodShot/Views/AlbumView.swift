@@ -2,6 +2,10 @@ import SwiftUI
 
 struct AlbumView: View {
     @ObservedObject var album: AlbumStore
+    @State private var isSelecting = false
+    @State private var selectedSessionIDs: Set<UUID> = []
+    @State private var showsDeleteConfirmation = false
+    @State private var deleteMessage: String?
 
     private let columns = [GridItem(.adaptive(minimum: 160), spacing: 14)]
     private static let dateFormatter: DateFormatter = {
@@ -18,54 +22,131 @@ struct AlbumView: View {
     }()
 
     var body: some View {
-        ZStack{
+        ZStack {
             Color.fsNavy
                 .ignoresSafeArea()
 
-            Group {
-                if album.sessions.isEmpty {
-                    VStack(spacing:10){
-                        Image(systemName:"photo.stack")
-                            .font(Font.system(size: 40))
-                            .foregroundStyle(Color.fsWhite.opacity(0.5))
-                            Text( "아직 촬영 기록이 없어요.")
-                                .font(.fsBody)
-
-                    }
-
-                } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 28) {
-                            ForEach(groupedSessions, id: \.date) { group in
-                                VStack(alignment: .leading, spacing: 14) {
-                                    Text(Self.dateFormatter.string(from: group.date))
-                                        .font(.fsTitle1)
-
-                                    LazyVGrid(columns: columns, spacing: 20) {
-                                        ForEach(group.sessions) { session in
-                                            NavigationLink {
-                                                AlbumSessionView(session: session, album: album)
-                                            } label: {
-                                                sessionCard(session)
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        .padding()
-                    }
-                }
-            }
-            .navigationTitle("촬영 앨범")
-            .navigationBarTitleDisplayMode(.inline)
-            .foregroundStyle(Color.fsWhite)
+            albumContent
         }
+        .navigationTitle("촬영 앨범")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(isSelecting)
+        .foregroundStyle(Color.fsWhite)
         .tint(Color.fsLime)
         .toolbarBackground(Color.fsNavy, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar { albumToolbar }
+        .confirmationDialog(
+            "선택한 앨범을 삭제할까요?",
+            isPresented: $showsDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("앨범 \(selectedSessionIDs.count)개 삭제", role: .destructive) {
+                deleteSelectedSessions()
+            }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("앨범에 포함된 사진도 앱에서 영구적으로 삭제됩니다.")
+        }
+        .alert("앨범 삭제", isPresented: Binding(
+            get: { deleteMessage != nil },
+            set: { if !$0 { deleteMessage = nil } }
+        )) {
+            Button("확인", role: .cancel) { deleteMessage = nil }
+        } message: {
+            Text(deleteMessage ?? "")
+        }
+    }
+
+    @ViewBuilder
+    private var albumContent: some View {
+        if album.sessions.isEmpty {
+            VStack(spacing: 10) {
+                Image(systemName: "photo.stack")
+                    .font(.system(size: 40))
+                    .foregroundStyle(Color.fsWhite.opacity(0.5))
+                Text("아직 촬영 기록이 없어요.")
+                    .font(.fsBody)
+            }
+        } else {
+            sessionsContent
+        }
+    }
+
+    private var sessionsContent: some View {
+        VStack(alignment: .trailing, spacing: 0) {
+            if isSelecting {
+                Text("\(selectedSessionIDs.count)/\(album.sessions.count)개 선택됨")
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                    .font(.fsCaption1)
+                    .foregroundStyle(Color.fsWhite.opacity(0.7))
+            }
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 28) {
+                    ForEach(groupedSessions, id: \.date) { group in
+                        sessionGroup(date: group.date, sessions: group.sessions)
+                    }
+                }
+                .padding()
+            }
+        }
+    }
+
+    private func sessionGroup(date: Date, sessions: [AlbumSession]) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(Self.dateFormatter.string(from: date))
+                .font(.fsTitle1)
+
+            LazyVGrid(columns: columns, spacing: 20) {
+                ForEach(sessions) { session in
+                    sessionItem(session)
+                }
+            }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var albumToolbar: some ToolbarContent {
+        if isSelecting {
+            ToolbarItem(placement: .cancellationAction) {
+                Button {
+                    toggleSelectionMode()
+                } label: {
+                    Image(systemName: "xmark")
+                        .frame(width: 24, height: 24)
+                }
+                .buttonBorderShape(.circle)
+                .accessibilityLabel("앨범 선택 취소")
+            }
+
+            ToolbarItem(placement: .confirmationAction) {
+                Button {
+                    showsDeleteConfirmation = true
+                } label: {
+                    Image(systemName: "trash")
+                        .frame(width: 24, height: 24)
+                }
+                .disabled(selectedSessionIDs.isEmpty)
+                .foregroundStyle(Color.red)
+                .buttonBorderShape(.circle)
+                .accessibilityLabel("선택한 앨범 삭제")
+            }
+        } else {
+            ToolbarItem(placement: .confirmationAction) {
+                Button {
+                    toggleSelectionMode()
+                } label: {
+                    Image(systemName: "checkmark")
+                        .frame(width: 24, height: 24)
+                }
+                .disabled(album.sessions.isEmpty)
+                .buttonBorderShape(.circle)
+                .accessibilityLabel("앨범 선택")
+            }
+        }
     }
 
     private var groupedSessions: [(date: Date, sessions: [AlbumSession])] {
@@ -78,45 +159,112 @@ struct AlbumView: View {
         .sorted { $0.date > $1.date }
     }
 
-    private func sessionCard(_ session: AlbumSession) -> some View {
-        ZStack(alignment: .bottom) {
-            Group {
-                if let image = session.coverImage {
-                    Image(uiImage: image).resizable().scaledToFill()
-                } else {
-                    Color.fsWhite.opacity(0.5)
-                }
+    @ViewBuilder
+    private func sessionItem(_ session: AlbumSession) -> some View {
+        if isSelecting {
+            Button {
+                toggleSelection(of: session.id)
+            } label: {
+                sessionCard(session, isSelected: selectedSessionIDs.contains(session.id))
             }
-            .frame(height: 173)
-            .clipped()
-            .overlay(alignment: .bottom) {
-                LinearGradient(
-                    colors: [.clear, Color.fsNavy.opacity(0.5)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 76)
-                .allowsHitTesting(false)
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink {
+                AlbumSessionView(session: session, album: album)
+            } label: {
+                sessionCard(session, isSelected: false)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .buttonStyle(.plain)
+        }
+    }
 
-            HStack {
-                Text(Self.timeFormatter.string(from: session.capturedAt))
+    private func sessionCard(_ session: AlbumSession, isSelected: Bool) -> some View {
+        ZStack(alignment: .topTrailing) {
+            ZStack(alignment: .bottom) {
+                Group {
+                    if let image = session.coverImage {
+                        Image(uiImage: image).resizable().scaledToFill()
+                    } else {
+                        Color.fsWhite.opacity(0.5)
+                    }
+                }
+                .frame(height: 173)
+                .clipped()
+                .overlay(alignment: .bottom) {
+                    LinearGradient(
+                        colors: [.clear, Color.fsNavy.opacity(0.5)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 76)
+                    .allowsHitTesting(false)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+
+                HStack {
+                    Text(Self.timeFormatter.string(from: session.capturedAt))
+                        .font(.fsBody)
+
+                    Spacer()
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "photo.stack.fill")
+                            .foregroundStyle(Color.fsLime)
+                        Text("\(session.photos.count)")
+                    }
                     .font(.fsBody)
-
-                Spacer()
-
-                HStack(spacing: 4) {
-                    Image(systemName: "photo.stack.fill")
-                        .foregroundStyle(Color.fsLime)
-                    Text("\(session.photos.count)")
                 }
-                .font(.fsBody)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
+
+            if isSelected {
+                Color.fsLime
+                    .opacity(0.4)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .allowsHitTesting(false)
+
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.fsLime)
+                    .font(.system(size: 25))
+                    .padding(12)
+                    .allowsHitTesting(false)
+            }
         }
         .foregroundStyle(Color.fsWhite)
+        .overlay {
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(isSelected ? Color.fsLime : Color.clear, lineWidth: 2)
+        }
+    }
+
+    private func toggleSelectionMode() {
+        isSelecting.toggle()
+        if !isSelecting {
+            selectedSessionIDs.removeAll()
+        }
+    }
+
+    private func toggleSelection(of sessionID: UUID) {
+        if selectedSessionIDs.contains(sessionID) {
+            selectedSessionIDs.remove(sessionID)
+        } else {
+            selectedSessionIDs.insert(sessionID)
+        }
+    }
+
+    private func deleteSelectedSessions() {
+        do {
+            _ = try album.deleteSessions(withIDs: selectedSessionIDs)
+            selectedSessionIDs.removeAll()
+            isSelecting = false
+        } catch {
+            selectedSessionIDs.formIntersection(Set(album.sessions.map(\.id)))
+            if selectedSessionIDs.isEmpty {
+                isSelecting = false
+            }
+            deleteMessage = "앨범을 삭제하지 못했습니다. \(error.localizedDescription)"
+        }
     }
 }
 
