@@ -48,7 +48,7 @@ struct ResultsView: View {
             }
         }
         .background(Color.fsNavy.ignoresSafeArea())
-        .tint(Color.fsLime)
+        .tint(Color.fsWhite)
         .navigationTitle("직전 촬영 결과")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.fsNavy, for: .navigationBar)
@@ -70,7 +70,7 @@ struct ResultsView: View {
                         .frame(width: 24, height: 24)
                 }
                 .disabled(!camera.candidates.contains(where: \.isSelected))
-                .foregroundStyle(Color.fsLime)
+                .foregroundStyle(Color.fsWhite)
                 .buttonBorderShape(.circle)
             }
 
@@ -84,7 +84,7 @@ struct ResultsView: View {
                         .frame(width: 24, height: 24)
                 }
                 .disabled(selectedCount == 0)
-                .foregroundStyle(Color.fsLime)
+                .foregroundStyle(Color.fsWhite)
                 .buttonBorderShape(.circle)
                 .accessibilityLabel("선택 사진 공유")
             }
@@ -96,11 +96,12 @@ struct ResultsView: View {
                     shareSelectedPhotoToInstagramStory()
                 } label: {
                     Image("instagram icon")
+                        .renderingMode(.template)
                         .resizable()
                         .frame(width: 24, height: 24)
                 }
                 .disabled(selectedCount != 1)
-                .foregroundStyle(Color.fsLime)
+                .foregroundStyle(Color.fsWhite)
                 .buttonBorderShape(.circle)
                 .opacity(selectedCount == 1 ? 1 : 0.3)
                 .animation(.easeInOut(duration: 0.15), value: selectedCount)
@@ -201,7 +202,7 @@ private struct CandidateCard: View {
             Button(action: onPreview) {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(Color.fsLime)
+                    .foregroundStyle(Color.fsWhite)
                     .frame(width: 36, height: 36)
                     .background(.black.opacity(0.55), in: Circle())
             }

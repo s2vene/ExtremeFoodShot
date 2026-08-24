@@ -315,7 +315,7 @@ private struct AlbumSessionView: View {
         }
         .background(Color.fsNavy.ignoresSafeArea())
         .foregroundStyle(Color.fsWhite)
-        .tint(Color.fsLime)
+        .tint(Color.fsWhite)
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle(Self.titleFormatter.string(from: session.capturedAt))
         .toolbarBackground(Color.fsNavy, for: .navigationBar)
@@ -330,7 +330,7 @@ private struct AlbumSessionView: View {
                         .frame(width: 24, height: 24)
                 }
                 .disabled(selectedPhotoIDs.isEmpty)
-                .foregroundStyle(Color.fsLime)
+                .foregroundStyle(Color.fsWhite)
                 .buttonBorderShape(.circle)
             }
 
@@ -344,7 +344,7 @@ private struct AlbumSessionView: View {
                         .frame(width: 24, height: 24)
                 }
                 .disabled(selectedPhotoIDs.isEmpty)
-                .foregroundStyle(Color.fsLime)
+                .foregroundStyle(Color.fsWhite)
                 .buttonBorderShape(.circle)
                 .accessibilityLabel("선택 사진 공유")
             }
@@ -356,11 +356,12 @@ private struct AlbumSessionView: View {
                     shareSelectedPhotoToInstagramStory()
                 } label: {
                     Image("instagram icon")
+                        .renderingMode(.template)
                         .resizable()
                         .frame(width: 24, height: 24)
                 }
                 .disabled(selectedPhotoIDs.count != 1)
-                .foregroundStyle(Color.fsLime)
+                .foregroundStyle(Color.fsWhite)
                 .buttonBorderShape(.circle)
                 .opacity(selectedPhotoIDs.count == 1 ? 1 : 0.3)
                 .animation(.easeInOut(duration: 0.15), value: selectedPhotoIDs.count)
@@ -427,7 +428,7 @@ private struct AlbumSessionView: View {
                 } label: {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(Color.fsLime)
+                        .foregroundStyle(Color.fsWhite)
                         .frame(width: 36, height: 36)
                         .background(.black.opacity(0.55), in: Circle())
                 }
