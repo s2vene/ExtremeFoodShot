@@ -193,6 +193,7 @@ struct ContentView: View {
     @discardableResult
     private func presentOnboardingIfNeeded() -> Bool {
         guard !hasSeenOnboarding else { return false }
+        hasSeenOnboarding = true
         isFirstLaunchOnboarding = true
         showOnboarding = true
         return true
