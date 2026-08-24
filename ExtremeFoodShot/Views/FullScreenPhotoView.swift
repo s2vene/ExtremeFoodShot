@@ -63,7 +63,7 @@ struct FullScreenPhotoView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(Color.fsNavy.opacity(0.5), in: Capsule())
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 45)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             }
 
