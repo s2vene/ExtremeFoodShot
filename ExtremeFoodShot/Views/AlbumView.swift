@@ -387,9 +387,17 @@ private struct AlbumSessionView: View {
             ShareSheet(images: payload.images)
         }
         .fullScreenCover(item: $previewPhoto) { photo in
-            if let image = photo.image {
-                FullScreenPhotoView(image: image)
+            let items = previewItems
+            if !items.isEmpty {
+                FullScreenPhotoView(items: items, initialID: photo.id)
             }
+        }
+    }
+
+    private var previewItems: [FullScreenPhotoItem] {
+        session.photos.compactMap { photo in
+            guard let image = photo.image else { return nil }
+            return FullScreenPhotoItem(id: photo.id, image: image)
         }
     }
 

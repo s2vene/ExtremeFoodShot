@@ -127,14 +127,22 @@ struct ResultsView: View {
             ShareSheet(images: payload.images)
         }
         .fullScreenCover(item: $previewCandidate) { candidate in
-            if let image = candidate.image {
-                FullScreenPhotoView(image: image)
+            let items = previewItems
+            if !items.isEmpty {
+                FullScreenPhotoView(items: items, initialID: candidate.id)
             }
         }
     }
 
     private var selectedCount: Int {
         camera.candidates.filter(\.isSelected).count
+    }
+
+    private var previewItems: [FullScreenPhotoItem] {
+        camera.candidates.compactMap { candidate in
+            guard let image = candidate.image else { return nil }
+            return FullScreenPhotoItem(id: candidate.id, image: image)
+        }
     }
 
     private func shareSelectedPhotos() {
