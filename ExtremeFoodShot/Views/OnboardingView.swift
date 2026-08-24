@@ -68,7 +68,11 @@ struct OnboardingView: View {
 }
 
 #if DEBUG
-#Preview("온보딩") {
+#Preview("최초 실행 · 포착 시작하기") {
     OnboardingView(isFirstLaunch: true)
+}
+
+#Preview("도움말 · 완료") {
+    OnboardingView(isFirstLaunch: false)
 }
 #endif
