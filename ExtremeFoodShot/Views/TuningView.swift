@@ -52,6 +52,32 @@ struct TuningView: View {
                 .listRowBackground(Color.fsWhite.opacity(0.05))
                 .listSectionSpacing(50)
 
+                Section {
+                    NavigationLink {
+                        PrivacyPolicyView()
+                    } label: {
+                        Label("개인정보처리방침", systemImage: "hand.raised.fill")
+                    }
+
+                    NavigationLink {
+                        ContactView()
+                    } label: {
+                        Label("문의하기", systemImage: "envelope.fill")
+                    }
+
+                    LabeledContent("앱 버전") {
+                        Text(appVersion)
+                            .foregroundStyle(Color.fsWhite.opacity(0.7))
+                            .monospacedDigit()
+                    }
+                } header: {
+                    Text("앱 정보")
+                        .font(.fsTitle2)
+                }
+                .font(.fsBody)
+                .padding(6)
+                .listRowBackground(Color.fsWhite.opacity(0.05))
+
             }
             .scrollContentBackground(.hidden)
             .listSectionSpacing(10)
@@ -83,6 +109,13 @@ struct TuningView: View {
             Text(value)
                 .foregroundStyle(Color.fsWhite)
         }
+    }
+
+    private var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "-"
+        let build = info?["CFBundleVersion"] as? String ?? "-"
+        return "\(version) (\(build))"
     }
 
 }
