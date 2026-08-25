@@ -7,6 +7,7 @@ struct ResultsView: View {
     @State private var storyShareMessage: String?
     @State private var sharePayload: SharePayload?
     @State private var previewCandidate: CaptureCandidate?
+    @State private var showsPhotoPermissionRecovery = false
 
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
 
@@ -62,7 +63,7 @@ struct ResultsView: View {
                             let savedCount = try await camera.saveSelected()
                             saveMessage = "사진 \(savedCount)장을 사진 앱에 저장했습니다."
                         } catch {
-                            saveMessage = error.localizedDescription
+                            handleSaveError(error)
                         }
                     }
                 } label: {
@@ -115,6 +116,14 @@ struct ResultsView: View {
         } message: {
             Text(saveMessage ?? "")
         }
+        .alert("사진 접근 권한 필요", isPresented: $showsPhotoPermissionRecovery) {
+            Button("설정 열기") {
+                AppSettingsService.open()
+            }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("선택한 사진을 저장하려면 설정에서 사진 추가 권한을 허용해 주세요.")
+        }
         .alert("Instagram 스토리 공유", isPresented: Binding(
             get: { storyShareMessage != nil },
             set: { if !$0 { storyShareMessage = nil } }
@@ -152,6 +161,15 @@ struct ResultsView: View {
 
         guard !images.isEmpty else { return }
         sharePayload = SharePayload(images: images)
+    }
+
+    private func handleSaveError(_ error: Error) {
+        if let cameraError = error as? CameraError,
+           case .photoLibraryDenied = cameraError {
+            showsPhotoPermissionRecovery = true
+        } else {
+            saveMessage = error.localizedDescription
+        }
     }
 
     private func shareSelectedPhotoToInstagramStory() {

@@ -13,6 +13,7 @@ final class MotionAnalyzer: ObservableObject {
     )
     @Published private(set) var axialHistory = Array(repeating: 0.0, count: 80)
     @Published private(set) var isAvailable = true
+    @Published private(set) var authorizationDenied = false
 
     @Published private(set) var triggerThreshold = 0.40
     @Published private(set) var rotationLimit = 3.4
@@ -24,6 +25,10 @@ final class MotionAnalyzer: ObservableObject {
     private var activityStarted = false
 
     func start() {
+        refreshAuthorizationStatus()
+        guard !authorizationDenied else { return }
+        guard !manager.isDeviceMotionActive else { return }
+
         guard manager.isDeviceMotionAvailable else {
             isAvailable = false
             return
@@ -31,7 +36,10 @@ final class MotionAnalyzer: ObservableObject {
 
         isAvailable = true
         manager.deviceMotionUpdateInterval = 1.0 / 100.0
-        manager.startDeviceMotionUpdates(using: .xArbitraryCorrectedZVertical, to: .main) { [weak self] motion, _ in
+        manager.startDeviceMotionUpdates(using: .xArbitraryCorrectedZVertical, to: .main) { [weak self] motion, error in
+            if error != nil {
+                self?.refreshAuthorizationStatus()
+            }
             guard let self, let motion else { return }
             self.consume(motion)
         }
@@ -39,6 +47,12 @@ final class MotionAnalyzer: ObservableObject {
 
     func stop() {
         manager.stopDeviceMotionUpdates()
+    }
+
+    func refreshAuthorizationStatus() {
+        let status = CMMotionActivityManager.authorizationStatus()
+        authorizationDenied = status == .denied || status == .restricted
+        isAvailable = manager.isDeviceMotionAvailable && !authorizationDenied
     }
 
     private func consume(_ motion: CMDeviceMotion) {

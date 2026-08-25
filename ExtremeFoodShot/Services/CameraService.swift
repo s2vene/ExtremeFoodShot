@@ -100,8 +100,10 @@ final class CameraService: NSObject, ObservableObject {
     func start() {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
+            authorizationDenied = false
             configureAndStart()
         case .notDetermined:
+            authorizationDenied = false
             AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
                 DispatchQueue.main.async {
                     if granted { self?.configureAndStart() }
