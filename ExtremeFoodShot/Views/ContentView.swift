@@ -9,6 +9,7 @@ struct ContentView: View {
     }
 
     @StateObject private var model: ExperimentViewModel
+    @Environment(\.scenePhase) private var scenePhase
     private let startsCaptureServices: Bool
     private let headerPreviewState: HeaderPreviewState
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
@@ -68,6 +69,12 @@ struct ContentView: View {
         }
         .onDisappear {
             if startsCaptureServices { model.stop() }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active,
+                  startsCaptureServices,
+                  !showOnboarding else { return }
+            model.start()
         }
         .sheet(isPresented: $showSettings) {
             TuningView(model: model, motion: model.motion, camera: model.camera)
@@ -155,11 +162,18 @@ struct ContentView: View {
             
             VStack(spacing:10){
                 if showsCameraAuthorizationDenied {
-                    Label("설정에서 카메라 권한을 허용해 주세요.", systemImage: "exclamationmark.triangle.fill")
-                        .font(.fsBody)
-                        .foregroundStyle(Color.fsLime)
+                    permissionRecoveryRow(
+                        "설정에서 카메라 권한을 허용해 주세요.",
+                        icon: "camera.fill"
+                    )
                 }
-                if showsMotionUnavailable {
+
+                if showsMotionAuthorizationDenied {
+                    permissionRecoveryRow(
+                        "설정에서 동작 접근을 허용해 주세요.",
+                        icon: "waveform.path.ecg"
+                    )
+                } else if showsMotionUnavailable {
                     Label("Device Motion을 사용할 수 없습니다.", systemImage: "waveform.path.ecg")
                         .foregroundStyle(Color.fsLime)
                         .font(.fsBody)
@@ -182,12 +196,39 @@ struct ContentView: View {
     private var showsMotionUnavailable: Bool {
         switch headerPreviewState {
         case .live:
-            !model.motion.isAvailable
+            !model.motion.isAvailable && !model.motion.authorizationDenied
         case .motionUnavailable, .cameraAuthorizationDeniedAndMotionUnavailable:
             true
         case .cameraAuthorizationDenied:
             false
         }
+    }
+
+    private var showsMotionAuthorizationDenied: Bool {
+        switch headerPreviewState {
+        case .live:
+            model.motion.authorizationDenied
+        default:
+            false
+        }
+    }
+
+    private func permissionRecoveryRow(_ message: String, icon: String) -> some View {
+        HStack(spacing: 12) {
+            Label(message, systemImage: icon)
+                .font(.fsBody)
+                .foregroundStyle(Color.fsLime)
+
+            Spacer(minLength: 0)
+
+            Button("설정 열기") {
+                AppSettingsService.open()
+            }
+            .font(.fsCaption1)
+            .buttonStyle(.bordered)
+            .tint(Color.fsWhite)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     @discardableResult
