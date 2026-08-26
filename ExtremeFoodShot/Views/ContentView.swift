@@ -75,10 +75,18 @@ struct ContentView: View {
             if startsCaptureServices { model.stop() }
         }
         .onChange(of: scenePhase) { _, newPhase in
-            guard newPhase == .active,
-                  startsCaptureServices,
-                  !showOnboarding else { return }
-            model.start()
+            guard startsCaptureServices else { return }
+            switch newPhase {
+            case .active:
+                guard !showOnboarding else { return }
+                model.applicationDidBecomeActive()
+            case .inactive:
+                model.applicationWillResignActive()
+            case .background:
+                model.applicationDidEnterBackground()
+            @unknown default:
+                model.applicationWillResignActive()
+            }
         }
         .sheet(isPresented: $showSettings) {
             TuningView(model: model, motion: model.motion, camera: model.camera)
@@ -86,7 +94,7 @@ struct ContentView: View {
         .sheet(isPresented: $showOnboarding, onDismiss: {
             guard startsServicesAfterOnboarding else { return }
             startsServicesAfterOnboarding = false
-            model.start()
+            model.applicationDidBecomeActive()
         }) {
             OnboardingView(isFirstLaunch: isFirstLaunchOnboarding) {
                 hasSeenOnboarding = true

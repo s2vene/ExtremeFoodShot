@@ -25,6 +25,9 @@ final class ExperimentViewModel: ObservableObject {
     private var didArchiveCurrentSession = false
     private var pendingExpectedCandidateCount = 0
     private var finishRequestedByUser = false
+    private var isInBackground = false
+    private var shouldStopCameraAfterCapture = false
+    private var shouldPresentResultsWhenActive = false
 
     init() {
         let savedMaximum = UserDefaults.standard.integer(forKey: "maximumCandidates")
@@ -54,6 +57,46 @@ final class ExperimentViewModel: ObservableObject {
     func stop() {
         motion.stop()
         camera.stop()
+    }
+
+    func applicationWillResignActive() {
+        motion.stop()
+        camera.setTorch(enabled: false)
+    }
+
+    func applicationDidEnterBackground() {
+        guard !isInBackground else { return }
+        isInBackground = true
+        motion.stop()
+        camera.setTorch(enabled: false)
+
+        guard isExperimentRunning else {
+            camera.stop()
+            return
+        }
+
+        finishRequestedByUser = true
+        isFinishingExperiment = true
+        shouldStopCameraAfterCapture = true
+        statusMessage = pendingExpectedCandidateCount > 0 || camera.isCapturing
+            ? "마지막 사진을 처리하고 있어요"
+            : "촬영이 중단되었어요"
+        completeExperimentIfReady()
+    }
+
+    func applicationDidBecomeActive() {
+        guard isInBackground else {
+            start()
+            if isExperimentRunning { camera.setTorch(enabled: true) }
+            return
+        }
+
+        isInBackground = false
+        start()
+        if shouldPresentResultsWhenActive {
+            shouldPresentResultsWhenActive = false
+            showResults = true
+        }
     }
 
     var captureUnavailableMessage: String? {
@@ -88,6 +131,8 @@ final class ExperimentViewModel: ObservableObject {
         didArchiveCurrentSession = false
         pendingExpectedCandidateCount = 0
         finishRequestedByUser = false
+        shouldStopCameraAfterCapture = false
+        shouldPresentResultsWhenActive = false
         isFinishingExperiment = false
         isExperimentRunning = true
         statusMessage = "휴대폰을 위아래로 움직여주세요"
@@ -120,7 +165,16 @@ final class ExperimentViewModel: ObservableObject {
             album.archive(camera.candidates)
             didArchiveCurrentSession = true
         }
-        showResults = !camera.candidates.isEmpty
+        let hasResults = !camera.candidates.isEmpty
+        if isInBackground {
+            shouldPresentResultsWhenActive = hasResults
+        } else {
+            showResults = hasResults
+        }
+        if shouldStopCameraAfterCapture {
+            shouldStopCameraAfterCapture = false
+            if isInBackground { camera.stop() }
+        }
     }
 
     func manualCapture() {
