@@ -10,6 +10,7 @@ final class CameraService: NSObject, ObservableObject {
 
     @Published private(set) var authorizationDenied = false
     @Published private(set) var isRunning = false
+    @Published private(set) var isRecovering = false
     @Published private(set) var isTorchOn = false
     @Published private(set) var isCapturing = false
     @Published private(set) var frameMetrics = FrameMetrics()
@@ -121,7 +122,10 @@ final class CameraService: NSObject, ObservableObject {
             guard let self else { return }
             self.wantsSessionRunning = false
             if self.session.isRunning { self.session.stopRunning() }
-            DispatchQueue.main.async { self.isRunning = false }
+            DispatchQueue.main.async {
+                self.isRunning = false
+                self.isRecovering = false
+            }
         }
     }
 
@@ -348,7 +352,10 @@ final class CameraService: NSObject, ObservableObject {
         hasReceivedFrame = true
         frameStateLock.unlock()
         guard isFirstFrame else { return }
-        sessionQueue.async { [weak self] in self?.recoveryAttempt = 0 }
+        sessionQueue.async { [weak self] in
+            self?.recoveryAttempt = 0
+            DispatchQueue.main.async { self?.isRecovering = false }
+        }
     }
 
     private func recoverSession() {
@@ -358,7 +365,18 @@ final class CameraService: NSObject, ObservableObject {
     }
 
     private func recoverSessionOnSessionQueue() {
-        guard wantsSessionRunning, recoveryAttempt < 3 else { return }
+        guard wantsSessionRunning else {
+            DispatchQueue.main.async { self.isRecovering = false }
+            return
+        }
+        guard recoveryAttempt < 3 else {
+            DispatchQueue.main.async { self.isRecovering = false }
+            return
+        }
+        DispatchQueue.main.async {
+            self.isRunning = false
+            self.isRecovering = true
+        }
         recoveryAttempt += 1
         sessionGeneration += 1
         if session.isRunning { session.stopRunning() }

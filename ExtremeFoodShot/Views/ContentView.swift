@@ -47,7 +47,11 @@ struct ContentView: View {
                 VStack(spacing: 14) {
                     header
                     Spacer()
-                    controls
+                    CaptureControls(
+                        model: model,
+                        camera: model.camera,
+                        motion: model.motion
+                    )
                 }
                 .padding()
             }
@@ -239,20 +243,32 @@ struct ContentView: View {
         return true
     }
     
-    
-    private var controls: some View {
+}
+
+private struct CaptureControls: View {
+    @ObservedObject var model: ExperimentViewModel
+    @ObservedObject var camera: CameraService
+    @ObservedObject var motion: MotionAnalyzer
+
+    var body: some View {
         VStack(spacing: 10) {
-            
+            if !model.isExperimentRunning,
+               let message = model.captureUnavailableMessage {
+                Label(message, systemImage: unavailableIcon)
+                    .font(.fsCaption1)
+                    .foregroundStyle(Color.fsLime)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+            }
+
             Text(model.isExperimentRunning
-                 ? "\(model.camera.candidates.count) / \(model.maximumCandidates)"
+                 ? "\(camera.candidates.count) / \(model.maximumCandidates)"
                  : "0 / \(model.maximumCandidates)")
-            .font(.fsBody)
-            .foregroundStyle(Color.fsWhite)
-            .padding(.bottom, 25)
-            
-            
+                .font(.fsBody)
+                .foregroundStyle(Color.fsWhite)
+                .padding(.bottom, 25)
+
             HStack(spacing: 10) {
-                
                 Button {
                     model.showResults = true
                 } label: {
@@ -266,49 +282,60 @@ struct ContentView: View {
                 }
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
-                .disabled(model.camera.candidates.isEmpty || model.isExperimentRunning)
-                
-                ZStack{
+                .disabled(camera.candidates.isEmpty || model.isExperimentRunning)
+
+                ZStack {
                     Image(model.isExperimentRunning ? "logo-red" : "logo")
                         .resizable()
                         .frame(width: 120, height: 120)
-                    
+                        .opacity(captureButtonDisabled ? 0.45 : 1)
+
                     Button {
-                        if model.isExperimentRunning { model.finishExperiment() }
-                        else { model.beginExperiment() }
+                        if model.isExperimentRunning {
+                            model.finishExperiment()
+                        } else {
+                            model.beginExperiment()
+                        }
                     } label: {
-                        Label("",
-                              systemImage: model.isExperimentRunning ? "stop.fill" : "camera.fill"
+                        Label(
+                            model.isExperimentRunning ? "촬영 중지" : "촬영 시작",
+                            systemImage: model.isExperimentRunning ? "stop.fill" : "camera.fill"
                         )
                         .labelStyle(.iconOnly)
                         .font(.fsTitle1)
                     }
                     .foregroundStyle(Color.fsNavy)
+                    .disabled(captureButtonDisabled)
+                    .accessibilityHint(accessibilityHint)
                 }
-                
-                Button {
-                    ()
-                } label: {
-                    HStack(spacing: -2) {
-                        Image(systemName: "chevron.compact.left")
-                        Image(systemName: "photo.on.rectangle.angled")
-                    }
-                    .font(.body)
+
+                Color.clear
                     .frame(width: 40, height: 40)
-                }
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
-                .opacity(0)
-                
-                
+                    .accessibilityHidden(true)
             }
-            
-            
         }
-        
-        
     }
-    
+
+    private var captureButtonDisabled: Bool {
+        !model.isExperimentRunning && !model.canBeginExperiment
+    }
+
+    private var unavailableIcon: String {
+        if camera.authorizationDenied {
+            return "camera.fill"
+        }
+        if motion.authorizationDenied || !motion.isAvailable {
+            return "waveform.path.ecg"
+        }
+        return "camera.fill"
+    }
+
+    private var accessibilityHint: String {
+        if model.isExperimentRunning {
+            return "현재 자동 촬영을 종료합니다."
+        }
+        return model.captureUnavailableMessage ?? "움직임을 감지하는 자동 촬영을 시작합니다."
+    }
 }
 
 private struct CaptureAspectRatioButton: View {

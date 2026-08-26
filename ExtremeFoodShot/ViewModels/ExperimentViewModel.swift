@@ -48,7 +48,34 @@ final class ExperimentViewModel: ObservableObject {
         camera.stop()
     }
 
+    var captureUnavailableMessage: String? {
+        if camera.authorizationDenied {
+            return "카메라 권한을 허용해야 촬영할 수 있어요."
+        }
+        if motion.authorizationDenied {
+            return "동작 접근을 허용해야 자동 촬영할 수 있어요."
+        }
+        if !motion.isAvailable {
+            return "이 기기에서는 움직임 자동 촬영을 사용할 수 없어요."
+        }
+        if camera.isRecovering {
+            return "카메라 연결을 복구하고 있어요."
+        }
+        if !camera.isRunning {
+            return "카메라를 준비하고 있어요."
+        }
+        return nil
+    }
+
+    var canBeginExperiment: Bool {
+        captureUnavailableMessage == nil
+    }
+
     func beginExperiment() {
+        guard canBeginExperiment else {
+            statusMessage = captureUnavailableMessage ?? "촬영을 시작할 수 없어요."
+            return
+        }
         camera.clearCandidates()
         didArchiveCurrentSession = false
         isExperimentRunning = true
