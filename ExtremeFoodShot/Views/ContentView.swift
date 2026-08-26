@@ -119,6 +119,25 @@ struct ContentView: View {
         } message: {
             Text(model.album.errorMessage ?? "")
         }
+        .alert("아직 포착된 사진이 없어요", isPresented: Binding(
+            get: { model.showNoCandidatesAlert },
+            set: { if !$0 { model.dismissNoCandidatesAlert() } }
+        )) {
+            Button("다시 촬영") {
+                model.dismissNoCandidatesAlert()
+                model.beginExperiment()
+            }
+            Button("사용법 보기") {
+                model.dismissNoCandidatesAlert()
+                isFirstLaunchOnboarding = false
+                showOnboarding = true
+            }
+            Button("취소", role: .cancel) {
+                model.dismissNoCandidatesAlert()
+            }
+        } message: {
+            Text("휴대폰을 음식 쪽으로 움직였다가 되돌려보세요.")
+        }
     }
     
     private var header: some View {

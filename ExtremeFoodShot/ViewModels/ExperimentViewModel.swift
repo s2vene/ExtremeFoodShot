@@ -19,6 +19,7 @@ final class ExperimentViewModel: ObservableObject {
         }
     }
     @Published var showResults = false
+    @Published private(set) var showNoCandidatesAlert = false
     @Published private(set) var isExperimentRunning = false
     @Published private(set) var isFinishingExperiment = false
     @Published var statusMessage = "음식을 화면 중앙에 맞춰주세요"
@@ -28,6 +29,7 @@ final class ExperimentViewModel: ObservableObject {
     private var isInBackground = false
     private var shouldStopCameraAfterCapture = false
     private var shouldPresentResultsWhenActive = false
+    private var shouldPresentNoCandidatesWhenActive = false
 
     init() {
         let savedMaximum = UserDefaults.standard.integer(forKey: "maximumCandidates")
@@ -96,6 +98,9 @@ final class ExperimentViewModel: ObservableObject {
         if shouldPresentResultsWhenActive {
             shouldPresentResultsWhenActive = false
             showResults = true
+        } else if shouldPresentNoCandidatesWhenActive {
+            shouldPresentNoCandidatesWhenActive = false
+            showNoCandidatesAlert = true
         }
     }
 
@@ -133,6 +138,8 @@ final class ExperimentViewModel: ObservableObject {
         finishRequestedByUser = false
         shouldStopCameraAfterCapture = false
         shouldPresentResultsWhenActive = false
+        shouldPresentNoCandidatesWhenActive = false
+        showNoCandidatesAlert = false
         isFinishingExperiment = false
         isExperimentRunning = true
         statusMessage = "휴대폰을 위아래로 움직여주세요"
@@ -160,16 +167,20 @@ final class ExperimentViewModel: ObservableObject {
         isFinishingExperiment = false
         finishRequestedByUser = false
         camera.setTorch(enabled: false)
-        statusMessage = "베스트 샷을 확인해보세요"
         if !didArchiveCurrentSession, !camera.candidates.isEmpty {
             album.archive(camera.candidates)
             didArchiveCurrentSession = true
         }
         let hasResults = !camera.candidates.isEmpty
+        statusMessage = hasResults
+            ? "베스트 샷을 확인해보세요"
+            : "아직 포착된 사진이 없어요"
         if isInBackground {
             shouldPresentResultsWhenActive = hasResults
+            shouldPresentNoCandidatesWhenActive = !hasResults
         } else {
             showResults = hasResults
+            showNoCandidatesAlert = !hasResults
         }
         if shouldStopCameraAfterCapture {
             shouldStopCameraAfterCapture = false
@@ -180,6 +191,10 @@ final class ExperimentViewModel: ObservableObject {
     func manualCapture() {
         statusMessage = "사진을 촬영했어요"
         camera.capture(motion: motion.snapshot, lighting: lightingMode)
+    }
+
+    func dismissNoCandidatesAlert() {
+        showNoCandidatesAlert = false
     }
 
     private func captureAutomatically(snapshot: MotionSnapshot) {
