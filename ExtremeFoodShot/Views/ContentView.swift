@@ -252,7 +252,11 @@ private struct CaptureControls: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            if !model.isExperimentRunning,
+            if model.isFinishingExperiment {
+                Label(model.statusMessage, systemImage: "hourglass")
+                    .font(.fsCaption1)
+                    .foregroundStyle(Color.fsLime)
+            } else if !model.isExperimentRunning,
                let message = model.captureUnavailableMessage {
                 Label(message, systemImage: unavailableIcon)
                     .font(.fsCaption1)
@@ -298,14 +302,14 @@ private struct CaptureControls: View {
                         }
                     } label: {
                         Label(
-                            model.isExperimentRunning ? "촬영 중지" : "촬영 시작",
-                            systemImage: model.isExperimentRunning ? "stop.fill" : "camera.fill"
+                            captureButtonLabel,
+                            systemImage: captureButtonIcon
                         )
                         .labelStyle(.iconOnly)
                         .font(.fsTitle1)
                     }
                     .foregroundStyle(Color.fsNavy)
-                    .disabled(captureButtonDisabled)
+                    .disabled(captureButtonDisabled || model.isFinishingExperiment)
                     .accessibilityHint(accessibilityHint)
                 }
 
@@ -331,10 +335,23 @@ private struct CaptureControls: View {
     }
 
     private var accessibilityHint: String {
+        if model.isFinishingExperiment {
+            return "마지막 사진 처리가 완료될 때까지 기다려 주세요."
+        }
         if model.isExperimentRunning {
             return "현재 자동 촬영을 종료합니다."
         }
         return model.captureUnavailableMessage ?? "움직임을 감지하는 자동 촬영을 시작합니다."
+    }
+
+    private var captureButtonLabel: String {
+        if model.isFinishingExperiment { return "사진 처리 중" }
+        return model.isExperimentRunning ? "촬영 중지" : "촬영 시작"
+    }
+
+    private var captureButtonIcon: String {
+        if model.isFinishingExperiment { return "hourglass" }
+        return model.isExperimentRunning ? "stop.fill" : "camera.fill"
     }
 }
 

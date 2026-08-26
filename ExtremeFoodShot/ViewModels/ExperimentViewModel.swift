@@ -20,8 +20,11 @@ final class ExperimentViewModel: ObservableObject {
     }
     @Published var showResults = false
     @Published private(set) var isExperimentRunning = false
+    @Published private(set) var isFinishingExperiment = false
     @Published var statusMessage = "음식을 화면 중앙에 맞춰주세요"
     private var didArchiveCurrentSession = false
+    private var pendingExpectedCandidateCount = 0
+    private var finishRequestedByUser = false
 
     init() {
         let savedMaximum = UserDefaults.standard.integer(forKey: "maximumCandidates")
@@ -29,12 +32,17 @@ final class ExperimentViewModel: ObservableObject {
         motion.onTrigger = { [weak self] snapshot in
             guard let self,
                   self.isExperimentRunning,
+                  !self.isFinishingExperiment,
+                  self.pendingExpectedCandidateCount == 0,
                   !self.camera.isCapturing,
                   self.camera.candidates.count < self.maximumCandidates else { return }
             self.captureAutomatically(snapshot: snapshot)
         }
         camera.onCaptureCompleted = { [weak self] in
             self?.haptics.playCaptureCompleted()
+        }
+        camera.onCaptureAttemptFinished = { [weak self] addedCount in
+            self?.captureAttemptDidFinish(addedCount: addedCount)
         }
     }
 
@@ -78,13 +86,34 @@ final class ExperimentViewModel: ObservableObject {
         }
         camera.clearCandidates()
         didArchiveCurrentSession = false
+        pendingExpectedCandidateCount = 0
+        finishRequestedByUser = false
+        isFinishingExperiment = false
         isExperimentRunning = true
         statusMessage = "휴대폰을 위아래로 움직여주세요"
         camera.setTorch(enabled: true)
     }
 
     func finishExperiment() {
+        guard isExperimentRunning, !isFinishingExperiment else { return }
+        finishRequestedByUser = true
+        isFinishingExperiment = true
+        statusMessage = pendingExpectedCandidateCount > 0 || camera.isCapturing
+            ? "마지막 사진을 처리하고 있어요"
+            : "촬영을 마무리하고 있어요"
+        camera.setTorch(enabled: false)
+        completeExperimentIfReady()
+    }
+
+    private func completeExperimentIfReady() {
+        guard isExperimentRunning,
+              isFinishingExperiment,
+              pendingExpectedCandidateCount == 0,
+              !camera.isCapturing else { return }
+
         isExperimentRunning = false
+        isFinishingExperiment = false
+        finishRequestedByUser = false
         camera.setTorch(enabled: false)
         statusMessage = "베스트 샷을 확인해보세요"
         if !didArchiveCurrentSession, !camera.candidates.isEmpty {
@@ -105,10 +134,12 @@ final class ExperimentViewModel: ObservableObject {
         let expectedCount: Int
         switch camera.automaticCaptureMode {
         case .photo:
+            pendingExpectedCandidateCount = 1
             camera.capture(motion: snapshot, lighting: lightingMode)
             expectedCount = 1
         case .bufferedFrames:
             let burstCount = min(camera.bufferedCandidateCount, remainingCount)
+            pendingExpectedCandidateCount = burstCount
             camera.captureBufferedBurst(
                 motion: snapshot,
                 lighting: lightingMode,
@@ -117,9 +148,29 @@ final class ExperimentViewModel: ObservableObject {
             expectedCount = burstCount
         }
         if camera.candidates.count + expectedCount >= maximumCandidates {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-                self?.finishExperiment()
-            }
+            finishRequestedByUser = false
+            isFinishingExperiment = true
+            statusMessage = "마지막 사진을 처리하고 있어요"
+            camera.setTorch(enabled: false)
         }
+    }
+
+    private func captureAttemptDidFinish(addedCount: Int) {
+        let expectedCount = pendingExpectedCandidateCount
+        pendingExpectedCandidateCount = 0
+
+        if camera.candidates.count >= maximumCandidates {
+            isFinishingExperiment = true
+        } else if isFinishingExperiment,
+                  !finishRequestedByUser,
+                  addedCount < expectedCount {
+            // A failed photo or a short buffered burst should not end the session
+            // before the requested number of candidates has actually been saved.
+            isFinishingExperiment = false
+            statusMessage = "휴대폰을 위아래로 움직여주세요"
+            camera.setTorch(enabled: true)
+        }
+
+        completeExperimentIfReady()
     }
 }

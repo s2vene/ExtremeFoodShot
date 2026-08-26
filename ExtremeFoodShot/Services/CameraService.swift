@@ -7,6 +7,7 @@ import UIKit
 final class CameraService: NSObject, ObservableObject {
     let session = AVCaptureSession()
     var onCaptureCompleted: (() -> Void)?
+    var onCaptureAttemptFinished: ((Int) -> Void)?
 
     @Published private(set) var authorizationDenied = false
     @Published private(set) var isRunning = false
@@ -154,7 +155,11 @@ final class CameraService: NSObject, ObservableObject {
 
     func capture(motion: MotionSnapshot, lighting: LightingMode) {
         sessionQueue.async { [weak self] in
-            guard let self, self.session.isRunning else { return }
+            guard let self else { return }
+            guard self.session.isRunning else {
+                DispatchQueue.main.async { self.onCaptureAttemptFinished?(0) }
+                return
+            }
             let settings: AVCapturePhotoSettings
             if self.photoOutput.availablePhotoCodecTypes.contains(.hevc) {
                 settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
@@ -193,7 +198,10 @@ final class CameraService: NSObject, ObservableObject {
 
         frameQueue.async { [weak self] in
             guard let self, let triggerFrame = self.frameBuffer.last else {
-                DispatchQueue.main.async { self?.isCapturing = false }
+                DispatchQueue.main.async {
+                    self?.isCapturing = false
+                    self?.onCaptureAttemptFinished?(0)
+                }
                 return
             }
             let triggerTime = triggerFrame.metrics.timestamp
@@ -228,6 +236,7 @@ final class CameraService: NSObject, ObservableObject {
                     if !candidates.isEmpty {
                         self.onCaptureCompleted?()
                     }
+                    self.onCaptureAttemptFinished?(candidates.count)
                 }
             }
         }
@@ -674,6 +683,7 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
             DispatchQueue.main.async {
                 self.errorMessage = error.localizedDescription
                 self.isCapturing = false
+                self.onCaptureAttemptFinished?(0)
             }
             return
         }
@@ -683,7 +693,10 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
                 from: originalData,
                 aspectRatio: capture.testSettings.aspectRatio
               ) else {
-            DispatchQueue.main.async { self.isCapturing = false }
+            DispatchQueue.main.async {
+                self.isCapturing = false
+                self.onCaptureAttemptFinished?(0)
+            }
             return
         }
 
@@ -705,6 +718,7 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
             self.candidates.sort { $0.recommendationScore > $1.recommendationScore }
             self.isCapturing = false
             self.onCaptureCompleted?()
+            self.onCaptureAttemptFinished?(1)
         }
     }
 }
