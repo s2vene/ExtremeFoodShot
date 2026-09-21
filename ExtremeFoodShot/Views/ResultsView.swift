@@ -75,8 +75,6 @@ struct ResultsView: View {
                 .buttonBorderShape(.circle)
             }
 
-            ToolbarSpacer(.fixed, placement: .confirmationAction)
-
             ToolbarItem(placement: .confirmationAction) {
                 Button {
                     shareSelectedPhotos()
@@ -89,8 +87,6 @@ struct ResultsView: View {
                 .buttonBorderShape(.circle)
                 .accessibilityLabel("선택 사진 공유")
             }
-
-            ToolbarSpacer(.fixed, placement: .confirmationAction)
 
             ToolbarItem(placement: .confirmationAction) {
                 Button {

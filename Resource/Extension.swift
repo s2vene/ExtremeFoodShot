@@ -63,3 +63,16 @@ extension Color {
     static let fsWhite = Color("fswhite")
     static let fsRed = Color("fsred")
 }
+
+extension View {
+    /// Uses Liquid Glass on supported systems and a bordered treatment on iOS 17–18.
+    @ViewBuilder
+    func fochakGlassButtonStyle() -> some View {
+        if #available(iOS 26.0, *) {
+            buttonStyle(.glass)
+        } else {
+            buttonStyle(.bordered)
+                .tint(Color.fsWhite)
+        }
+    }
+}

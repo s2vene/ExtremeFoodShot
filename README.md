@@ -9,7 +9,7 @@
 
   <br />
 
-  <img src="https://img.shields.io/badge/iOS-26.0+-000000?style=flat-square&logo=apple&logoColor=white" alt="iOS 26.0+" />
+  <img src="https://img.shields.io/badge/iOS-17.0+-000000?style=flat-square&logo=apple&logoColor=white" alt="iOS 17.0+" />
   <img src="https://img.shields.io/badge/Swift-5.0-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift 5.0" />
   <img src="https://img.shields.io/badge/SwiftUI-0D96F6?style=flat-square&logo=swift&logoColor=white" alt="SwiftUI" />
 </div>
@@ -53,7 +53,7 @@ FOCHAK은 휴대폰을 음식과 평행하게 잡고 위아래로 움직이면, 
 ### 요구 사항
 
 - macOS 및 Xcode
-- iOS 26.0 이상을 실행하는 실제 iPhone
+- iOS 17.0 이상을 실행하는 실제 iPhone
 - 카메라와 Device Motion을 지원하는 기기
 
 ### 설치

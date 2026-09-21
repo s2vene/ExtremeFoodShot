@@ -164,7 +164,7 @@ struct ContentView: View {
                         .frame(width: 20, height: 30)
                     
                 }
-                .buttonStyle(.glass)
+                .fochakGlassButtonStyle()
                 .disabled(model.isExperimentRunning)
 
                 Button {
@@ -176,7 +176,7 @@ struct ContentView: View {
                         .foregroundStyle(Color.fsWhite)
                         .frame(width: 20, height: 30)
                 }
-                .buttonStyle(.glass)
+                .fochakGlassButtonStyle()
                 .disabled(model.isExperimentRunning)
                 
                 Button {
@@ -187,7 +187,7 @@ struct ContentView: View {
                         .foregroundStyle(Color.fsWhite)
                         .frame(width: 20, height: 30)
                 }
-                .buttonStyle(.glass)
+                .fochakGlassButtonStyle()
                 .disabled(model.isExperimentRunning)
             }
             
@@ -311,7 +311,7 @@ private struct CaptureControls: View {
                     .foregroundStyle(Color.fsWhite)
                     .frame(width: 40, height: 40)
                 }
-                .buttonStyle(.glass)
+                .fochakGlassButtonStyle()
                 .buttonBorderShape(.circle)
                 .disabled(camera.candidates.isEmpty || model.isExperimentRunning)
 
@@ -395,7 +395,7 @@ private struct CaptureAspectRatioButton: View {
                 .foregroundStyle(Color.fsWhite)
                 .frame(minWidth: 34, minHeight: 30)
         }
-        .buttonStyle(.glass)
+        .fochakGlassButtonStyle()
         .disabled(isDisabled)
     }
 
